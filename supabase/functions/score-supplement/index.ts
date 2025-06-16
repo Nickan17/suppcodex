@@ -55,24 +55,64 @@ function expandToFull(
   };
 }
 
-async function score(data: SupplementData, scraped: string | null): Promise<SimplifiedAIResponse> {
+async function score(data, scraped) {
   const key = Deno.env.get("EXPO_PUBLIC_OPENROUTER_API_KEY");
-  if (!key) throw new Error("OpenRouter API key missing");
-  const prompt = `You are SupplementScoreAI. Using the provided data and optional scraped text, score the product. Return ONLY minified JSON with keys pid,t,dose,qual,risk,highlights.\nDATA:${JSON.stringify(data)}\nSCRAPED:${scraped ?? "NONE"}`;
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "openai/gpt-4o-mini",
-      temperature: 0,
-      response_format: { type: "json_object" },
-      messages: [{ role: "user", content: prompt }],
-    }),
-  });
-  if (!res.ok) throw new Error(`OpenRouter error ${res.status}`);
-  const j = await res.json();
-  const txt = j.choices?.[0]?.message?.content ?? "";
-  return JSON.parse(txt) as SimplifiedAIResponse;
+  if (!key) {
+    console.error("score: OpenRouter API key missing!");
+    throw new Error("OpenRouter API key missing");
+  }
+  const prompt = `You are SupplementScoreAI. Using the provided data and optional scraped text, score the product. Return ONLY minified JSON with keys pid,t,dose,qual,risk,highlights. The values for 't' (transparency), 'dose' (clinical dosage/bioavailability), 'qual' (quality/testing), and 'risk' (additives/brand history) MUST be **integers representing a score from 1 to 10**. For example, 7. If a specific score cannot be determined, return '0' as the number. The 'highlights' should be an array of strings.
+  DATA:${JSON.stringify(data)}\nSCRAPED:${scraped ?? "NONE"}`;
+
+  try {
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-4o-mini",
+        temperature: 0,
+        response_format: {
+          type: "json_object"
+        },
+        messages: [
+          {
+            role: "user",
+            content: prompt
+          }
+        ]
+      })
+    });
+
+    // --- NEW LOGGING ADDED BELOW THIS LINE ---
+    const rawResText = await res.text();
+    console.log(`OpenRouter response status: ${res.status}`);
+    console.log(`OpenRouter raw response body: ${rawResText}`);
+    // --- NEW LOGGING ADDED ABOVE THIS LINE ---
+
+    if (!res.ok) {
+      console.error(`OpenRouter error: ${res.status} - ${rawResText}`);
+      throw new Error(`OpenRouter error ${res.status}: ${rawResText}`);
+    }
+
+    const j = JSON.parse(rawResText);
+    const txt = j.choices?.[0]?.message?.content ?? "";
+
+    console.log("OpenRouter AI content (txt):", txt);
+
+    if (!txt) {
+        console.error("OpenRouter AI returned empty content.");
+        throw new Error("OpenRouter AI returned empty content.");
+    }
+
+    return JSON.parse(txt);
+
+  } catch (error) {
+    console.error("Error in score function:", error.message || error);
+    throw error;
+  }
 }
 
 serve(async (req) => {

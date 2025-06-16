@@ -1,0 +1,7 @@
+{
+  "extends": "../_shared/deno.json",
+  "compilerOptions": {
+    "lib": ["deno.ns", "dom", "es2015", "es2017"],
+    "types": ["@types/deno"]
+  }
+}

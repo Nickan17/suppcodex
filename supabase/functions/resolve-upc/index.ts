@@ -13,6 +13,7 @@ async function fetchFromDSLD(upc: string): Promise<SupplementData | null> {
     const res = await fetch(url, {
       headers: { "X-Api-Key": key, "Content-Type": "application/json" }
     });
+    console.log("DSLD status:", res.status, "body:", await res.clone().text());
     if (!res.ok) return null;
     const data = await res.json();
     const hit = data.hits?.[0]?._source;
@@ -40,6 +41,7 @@ async function fetchFromFatSecret(upc: string): Promise<SupplementData | null> {
     const token = await getFSAccessToken();
     const url = `https://platform.fatsecret.com/rest/server.api?method=food.find&id_type=upc&search_expression=${upc}`;
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    console.log("FatSecret status:", res.status, "body:", await res.clone().text());
     if (!res.ok) return null;
     const xml = await res.text();
     // Supabase's edge-runtime already has DOMParser globally – no extra import needed
@@ -69,6 +71,7 @@ async function fetchFromOpenFoodFacts(upc: string): Promise<SupplementData | nul
   try {
     const url = `https://world.openfoodfacts.org/api/v2/product/${upc}.json`;
     const res = await fetch(url);
+    console.log("OFF status:", res.status, "body:", await res.clone().text());
     if (!res.ok) return null;
     const data = await res.json();
     if (data.status !== 1) return null;
@@ -97,6 +100,8 @@ async function fetchFromOpenFoodFacts(upc: string): Promise<SupplementData | nul
 }
 
 serve(async (req) => {
+  console.log("req.method", req.method);
+  console.log("req.url ", req.url);
   const upc = new URL(req.url).searchParams.get("upc");
   if (!upc) {
     return new Response(JSON.stringify({ error: "missing upc" }), {
