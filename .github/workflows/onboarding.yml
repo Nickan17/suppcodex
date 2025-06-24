@@ -23,7 +23,7 @@ jobs:
         run: npm ci
 
       - name: Install Supabase CLI
-        run: npm install -g supabase
+        uses: supabase/setup-cli@v1
 
       - name: Authenticate Supabase CLI
         run: supabase login
