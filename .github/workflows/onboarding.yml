@@ -38,6 +38,9 @@ jobs:
               -e 's|SUPABASE_JWT_SECRET=.*|SUPABASE_JWT_SECRET=dummy_jwt_secret|' \
               .env.example > .env.local
 
+      - name: Install ESLint
+        run: npm install --save-dev eslint eslint-config-expo
+
       - name: Run Lint
         run: npm run lint
 
