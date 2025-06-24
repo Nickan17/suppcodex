@@ -116,7 +116,28 @@ async function score(data, scraped) {
 }
 
 serve(async (req) => {
-  if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405 });
+  // Handle CORS pre-flight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Max-Age': '86400',
+      },
+    });
+  }
+
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  };
+
+  if (req.method !== "POST") {
+    return new Response("Method Not Allowed", { status: 405, headers: corsHeaders });
+  }
+
   try {
     const { data, scraped }: { data: SupplementData; scraped: string | null } = await req.json();
     const simple = await score(data, scraped);
@@ -127,9 +148,9 @@ serve(async (req) => {
       Deno.env.get("EXPO_PUBLIC_SUPABASE_ANON_KEY")!,
     );
     await supabase.from("scored_products").upsert([full], { onConflict: "product_id" });
-    return new Response(JSON.stringify(full), { headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify(full), { headers: { "Content-Type": "application/json", ...corsHeaders } });
   } catch (err) {
     console.error(err);
-    return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
   }
 });

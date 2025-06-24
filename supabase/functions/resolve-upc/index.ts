@@ -100,13 +100,29 @@ async function fetchFromOpenFoodFacts(upc: string): Promise<SupplementData | nul
 }
 
 serve(async (req) => {
-  console.log("req.method", req.method);
-  console.log("req.url ", req.url);
+  // Handle CORS pre-flight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+        'Access-Control-Max-Age': '86400',
+      },
+    });
+  }
+
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  };
+
   const upc = new URL(req.url).searchParams.get("upc");
   if (!upc) {
     return new Response(JSON.stringify({ error: "missing upc" }), {
       status: 400,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   }
 
@@ -133,11 +149,11 @@ serve(async (req) => {
   if (!data) {
     return new Response(JSON.stringify({ error: "UPC not found" }), {
       status: 404,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   }
   console.log("Resolved via", sourceUsed);
   return new Response(JSON.stringify(data), {
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...corsHeaders },
   });
 });

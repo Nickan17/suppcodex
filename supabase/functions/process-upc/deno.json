@@ -8,5 +8,5 @@
     "lib": ["deno.ns", "dom"],
     "types": ["@types/deno"]
   },
-  "unstable": true
+  "unstable": []
 }

@@ -1,0 +1,43 @@
+name: Onboarding CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  onboarding-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create .env.local from .env.example
+        run: |
+          sed -e 's|SUPABASE_URL=.*|SUPABASE_URL=http://localhost:54321|' \
+              -e 's|SUPABASE_ANON_KEY=.*|SUPABASE_ANON_KEY=dummy_anon_key|' \
+              -e 's|SUPABASE_SERVICE_ROLE_KEY=.*|SUPABASE_SERVICE_ROLE_KEY=dummy_service_role_key|' \
+              -e 's|SUPABASE_JWT_SECRET=.*|SUPABASE_JWT_SECRET=dummy_jwt_secret|' \
+              .env.example > .env.local
+
+      - name: Run Lint
+        run: npm run lint
+
+      - name: Verify Deploy Script
+        run: npm run deploy:dev -- --dry-run
+
+      - name: Verify JWT Generation Script
+        run: node gen_service_jwt.js "dummy" 1
+
+      - name: Verify Test Script Exists
+        run: node -e "require('fs').accessSync('test_full_score.ps1')"
