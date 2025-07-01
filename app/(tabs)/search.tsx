@@ -120,7 +120,7 @@ export default function SearchScreen() {
           {filteredProducts.length === 0 && searchQuery.length > 0 && (
             <View style={styles.noResults}>
               <Typography variant="body" weight="medium">
-                Click "Search" to see "Gorilla&nbsp;Mind" products
+                Click &quot;Search&quot; to see &quot;Gorilla&nbsp;Mind&quot; products
               </Typography>
               <Typography variant="bodySmall" color={colors.textSecondary} style={styles.noResultsHint}>
                 Try searching for a different name or brand
