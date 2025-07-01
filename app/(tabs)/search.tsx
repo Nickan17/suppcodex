@@ -120,7 +120,7 @@ export default function SearchScreen() {
           {filteredProducts.length === 0 && searchQuery.length > 0 && (
             <View style={styles.noResults}>
               <Typography variant="body" weight="medium">
-                No supplements found matching &quot;{searchQuery}&quot;
+                No supplements found matching "{searchQuery}"
               </Typography>
               <Typography variant="bodySmall" color={colors.textSecondary} style={styles.noResultsHint}>
                 Try searching for a different name or brand
