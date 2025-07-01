@@ -108,5 +108,3 @@ export default function Typography({
     </Text>
   );
 }
-
-const styles = StyleSheet.create({});

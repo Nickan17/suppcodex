@@ -22,7 +22,7 @@ export default function HomeScreen() {
   const colors = isDark ? Colors.dark : Colors.light;
   const [searchQuery, setSearchQuery] = useState('');
   const [showScanner, setShowScanner] = useState(false);
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [, setHasPermission] = useState<boolean | null>(null);
   const [recentScans, setRecentScans] = useState<any[]>([]);
 
   // This would be populated from real data in a full implementation
@@ -43,11 +43,6 @@ export default function HomeScreen() {
     router.push('/product/123');
   };
 
-  const handleSearch = () => {
-    if (searchQuery.trim()) {
-      router.push(`/search?q=${searchQuery}`);
-    }
-  };
 
 const handlePasteUrl = async () => {
   console.log("handlePasteUrl called");

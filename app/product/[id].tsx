@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Image, TouchableOpacity, Platform, ActivityIndicator, Alert, Linking } from 'react-native';
+import { View, StyleSheet, ScrollView, Image, TouchableOpacity, Platform, ActivityIndicator, Linking } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useTheme } from '@/context/ThemeContext';

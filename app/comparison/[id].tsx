@@ -68,7 +68,7 @@ const COMPARISON = {
 export default function ComparisonScreen() {
   const { isDark } = useTheme();
   const colors = isDark ? Colors.dark : Colors.light;
-  const { id } = useLocalSearchParams<{ id: string }>();
+  useLocalSearchParams<{ id: string }>();
 
   const comparison = COMPARISON; // In a real app, we'd fetch the comparison by ID
 
