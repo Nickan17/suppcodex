@@ -22,8 +22,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Supabase CLI
+      - name: Set up Supabase CLI
         uses: supabase/setup-cli@v1
+        with:
+          version: 2.26.9
 
       - name: Authenticate Supabase CLI
         run: supabase login
