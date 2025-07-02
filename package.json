@@ -9,6 +9,7 @@
     "lint": "expo lint",
     "deploy:dev": "supabase functions build full-score-from-upc && supabase functions build firecrawl-extract && supabase functions build resolve-upc && supabase functions build score-supplement",
     "deploy:prod": "supabase functions deploy full-score-from-upc && supabase functions deploy firecrawl-extract && supabase functions deploy resolve-upc && supabase functions deploy score-supplement",
+    "deploy:staging": "supabase functions deploy full-score-from-upc --no-verify-jwt --project-ref ${{ secrets.STAGING_PROJECT_REF }} && supabase functions deploy firecrawl-extract --no-verify-jwt --project-ref ${{ secrets.STAGING_PROJECT_REF }} && supabase functions deploy resolve-upc --no-verify-jwt --project-ref ${{ secrets.STAGING_PROJECT_REF }} && supabase functions deploy score-supplement --no-verify-jwt --project-ref ${{ secrets.STAGING_PROJECT_REF }}",
     "logs": "supabase functions log"
   },
   "dependencies": {
