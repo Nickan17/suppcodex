@@ -52,7 +52,7 @@ jobs:
         run: supabase --version
 
       - name: Verify Deploy Script
-        run: npm run deploy:dev -- --dry-run
+        run: npm run deploy:dev
 
       - name: Verify JWT Generation Script
         run: node gen_service_jwt.js "dummy" 1
