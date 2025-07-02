@@ -7,7 +7,7 @@
     "dev": "cross-env EXPO_NO_TELEMETRY=1 expo start",
     "build:web": "expo export --platform web",
     "lint": "expo lint",
-    "deploy:dev": "supabase functions deploy full-score-from-upc --no-verify-jwt && supabase functions deploy firecrawl-extract --no-verify-jwt && supabase functions deploy resolve-upc --no-verify-jwt && supabase functions deploy score-supplement --no-verify-jwt",
+    "deploy:dev": "supabase functions deploy full-score-from-upc --no-verify-jwt --dry-run && supabase functions deploy firecrawl-extract --no-verify-jwt --dry-run && supabase functions deploy resolve-upc --no-verify-jwt --dry-run && supabase functions deploy score-supplement --no-verify-jwt --dry-run",
     "deploy:prod": "supabase functions deploy full-score-from-upc && supabase functions deploy firecrawl-extract && supabase functions deploy resolve-upc && supabase functions deploy score-supplement",
     "logs": "supabase functions log"
   },
