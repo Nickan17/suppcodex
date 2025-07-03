@@ -1,21 +1,13 @@
+/* eslint-env node */
 module.exports = {
-  preset: 'jest-expo',
-
-  setupFilesAfterEnv: ['@testing-library/jest-native/extend-expect'],
-
-  // 👇  Make *all* Expo modules (including expo-modules-core) go through Babel
+  preset: 'jest-expo',                  // ← published preset for Expo 53
+  testEnvironment: 'jsdom',
+  setupFilesAfterEnv: ['./jest.setup.js'],
   transformIgnorePatterns: [
-    'node_modules/(?!(expo(nent)?' +            // expo, exponent
-      '|@expo' +                               // any @expo/*
-      '|expo-modules-core' +                   // the one blowing up
-      '|expo-.*' +                             // any other expo-* pkgs
-      '|react-native' +                        // react-native + forks
-      '|@react-native' +                       // scoped RN libs
-      '|@react-navigation' +                   // navigation libs
-    ')/)',
+    'node_modules/(?!(jest-runner|@react-native|react-native'
+    + '|@react-native/community|expo(nent)?|@expo(nent)?|expo-modules-core|expo-status-bar|expo-constants'
+    + '|react-navigation|@react-navigation'
+    + '|@unimodules|unimodules|sentry-expo|native-base|@sentry)/)',
   ],
-
-  moduleNameMapper: {
-    '\\.svg$': '<rootDir>/__mocks__/svgMock.js',
-  },
+  moduleNameMapper: { '^~/(.*)$': '<rootDir>/$1' },
 };

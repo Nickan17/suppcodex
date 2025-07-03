@@ -4,6 +4,10 @@ import PasteScreen from '../app/paste';
 import { supabase } from '../lib/supabase';
 import { router } from 'expo-router';
 
+(global as any).fetch = jest.fn(() =>
+  Promise.resolve({ ok: true, json: () => Promise.resolve({}) }),
+);
+
 jest.mock('../lib/supabase', () => ({
   supabase: {
     functions: {
@@ -19,6 +23,12 @@ jest.mock('expo-router', () => ({
 }));
 
 describe('PasteScreen', () => {
+  beforeEach(() => {
+    (supabase.functions.invoke as jest.Mock).mockClear();
+    (router.push as jest.Mock).mockClear();
+    (global.fetch as jest.Mock).mockClear();
+  });
+
   it('should call the correct functions and navigate on success', async () => {
     const mockUrl = 'https://example.com/product';
     const mockMarkdown = '## Product Title';
@@ -32,6 +42,7 @@ describe('PasteScreen', () => {
 
     const input = getByPlaceholderText('https://example.com/product');
     fireEvent.changeText(input, mockUrl);
+    expect(input.props.value).toBe(mockUrl);
 
     const submitButton = getByText('Submit');
     fireEvent.press(submitButton);

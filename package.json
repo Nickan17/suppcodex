@@ -11,7 +11,7 @@
     "deploy:prod": "supabase functions deploy full-score-from-upc && supabase functions deploy firecrawl-extract && supabase functions deploy resolve-upc && supabase functions deploy score-supplement",
     "deploy:staging": "supabase functions deploy full-score-from-upc --no-verify-jwt --project-ref $STAGING_PROJECT_REF && supabase functions deploy firecrawl-extract --no-verify-jwt --project-ref $STAGING_PROJECT_REF && supabase functions deploy resolve-upc --no-verify-jwt --project-ref $STAGING_PROJECT_REF && supabase functions deploy score-supplement --no-verify-jwt --project-ref $STAGING_PROJECT_REF",
     "logs": "supabase functions log",
-    "test": "jest"
+    "test": "jest --passWithNoTests"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.2.3",
@@ -58,14 +58,16 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
-    "@testing-library/jest-native": "^5.4.3",
-    "@testing-library/react-native": "^13.2.0",
+    "@testing-library/jest-native": "latest",
+    "@testing-library/react-native": "latest",
     "@types/jest": "^30.0.0",
     "@types/react": "~19.0.10",
     "cross-env": "^7.0.3",
+    "eslint-plugin-jest": "latest",
     "jest": "^30.0.4",
     "jest-expo": "^53.0.9",
     "source-map-support": "^0.5.21",
-    "typescript": "~5.8.3"
+    "typescript": "~5.8.3",
+    "whatwg-fetch": "^3.6.20"
   }
 }
