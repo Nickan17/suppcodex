@@ -62,6 +62,7 @@ export default function SearchScreen() {
   );
 
   const toggleBookmark = (productId: string) => {
+    console.log(`Toggling bookmark for product: ${productId}`);
     if (bookmarkedProducts.includes(productId)) {
       setBookmarkedProducts(bookmarkedProducts.filter(id => id !== productId));
     } else {
@@ -81,7 +82,7 @@ export default function SearchScreen() {
           </Typography>
           <Typography 
             variant="body" 
-            style={[styles.subtitle, { color: colors.textSecondary }]}
+            style={{ ...styles.subtitle, color: colors.textSecondary }}
           >
             Find supplements by name or brand
           </Typography>
@@ -97,7 +98,7 @@ export default function SearchScreen() {
           {searchQuery.length > 0 && (
             <Typography 
               variant="bodySmall"
-              style={[styles.resultsCount, { color: colors.textSecondary }]}
+              style={{ ...styles.resultsCount, color: colors.textSecondary }}
             >
               {filteredProducts.length} {filteredProducts.length === 1 ? 'result' : 'results'} found
             </Typography>

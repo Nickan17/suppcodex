@@ -60,7 +60,7 @@ export default function CompareScreen() {
           </Typography>
           <Typography 
             variant="body" 
-            style={[styles.subtitle, { color: colors.textSecondary }]}
+            style={{ ...styles.subtitle, color: colors.textSecondary }}
           >
             Compare supplements side by side
           </Typography>
@@ -71,7 +71,7 @@ export default function CompareScreen() {
           variant="secondary"
           icon={<Plus size={18} color={colors.primary} />}
           fullWidth
-          onPress={() => router.push('/new-comparison')}
+          onPress={() => router.push('/compare/new')}
           style={styles.newButton}
         />
         

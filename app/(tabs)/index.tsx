@@ -45,30 +45,7 @@ export default function HomeScreen() {
 
 
 const handlePasteUrl = async () => {
-  console.log("handlePasteUrl called");
-  const productUrl = (await Clipboard.getStringAsync())?.trim();
-  const productIdentifier = crypto.randomUUID(); // temporary ID until DB row exists
-
-  if (!productUrl || !/^https?:\/\/.+/i.test(productUrl)) {
-    Alert.alert("No valid URL detected", "Copy a product page URL first.");
-    return;
-  }
-
-  console.log("Submitting URL to Supabase:", productUrl);
-
-  try {
-    const { data, error } = await supabase.functions.invoke("process-product", {
-      body: { productIdentifier, productUrl },
-    });
-    if (error) throw error;
-
-    console.log("Edge Function OK:", data);
-    setRecentScans(prev => [...prev, { id: productIdentifier, url: productUrl }]);
-    router.push(`/product/${productIdentifier}`);
-  } catch (err) {
-    console.error("Edge Function error:", err);
-    Alert.alert("Error", "Something went wrong—check the console.");
-  }
+  router.push('/paste');
 };
 
   const handleUploadImage = async () => {
@@ -150,7 +127,7 @@ const handlePasteUrl = async () => {
               title="Scan Barcode"
               variant="primary"
               icon={<Camera size={18} color="#FFFFFF" />}
-              onPress={requestCameraPermission}
+              onPress={() => router.push('/scan')}
               fullWidth
             />
           </Card>
