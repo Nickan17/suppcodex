@@ -64,6 +64,9 @@ jobs:
     needs: build-test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      STAGING_PROJECT_REF: ${{ secrets.STAGING_PROJECT_REF }}
 
     steps:
       - name: Checkout repository
@@ -86,8 +89,6 @@ jobs:
 
       - name: Authenticate Supabase CLI
         run: supabase login
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
       - name: Deploy to Staging
         run: |
