@@ -71,11 +71,20 @@ async function fetchFromOpenFoodFacts(upc: string): Promise<SupplementData | nul
   try {
     const url = `https://world.openfoodfacts.org/api/v2/product/${upc}.json`;
     const res = await fetch(url);
-    console.log("OFF status:", res.status, "body:", await res.clone().text());
+    const raw = await res.clone().text();
+    console.log("📦 OFF raw response:", raw);
     if (!res.ok) return null;
-    const data = await res.json();
+    const data = JSON.parse(raw);
     if (data.status !== 1) return null;
     const p = data.product;
+    const productName = p.product_name ?? "";
+    const productBrand = p.brands ?? "";
+
+    if (!productName && !productBrand) {
+      console.warn(`[${upc}] No name/brand in OFF, skipping OpenRouter fallback`);
+      return null;
+    }
+
     const ingredients: Ingredient[] = [];
     if (Array.isArray(p.ingredients)) {
       for (const i of p.ingredients) {
@@ -86,8 +95,8 @@ async function fetchFromOpenFoodFacts(upc: string): Promise<SupplementData | nul
     }
     return {
       product_id: p.code ?? upc,
-      brand: p.brands ?? "",
-      product_name: p.product_name ?? "Unknown",
+      brand: productBrand,
+      product_name: productName,
       ingredients,
       label_claims: [],
       certifications: [],

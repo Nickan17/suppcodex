@@ -90,6 +90,8 @@ jobs:
       - name: Deploy to Staging
         run: |
           set -e                              # fail fast on first error
+          echo "Setting OpenRouter API key secret..."
+          supabase secrets set --project-ref "$STAGING_PROJECT_REF" EXPO_PUBLIC_OPENROUTER_API_KEY=${{ secrets.EXPO_PUBLIC_OPENROUTER_API_KEY }}
           for fn in full-score-from-upc firecrawl-extract resolve-upc score-supplement
           do
             echo "Deploying $fn …"
