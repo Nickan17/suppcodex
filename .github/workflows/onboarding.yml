@@ -60,8 +60,27 @@ jobs:
       - name: Verify Test Script Exists
         run: node -e "require('fs').accessSync('test_full_score.ps1')"
 
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install deps
+        run: npm ci
+      - name: Run Jest (with coverage)
+        run: npx jest --coverage --runInBand
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info
+
   deploy-staging:
-    needs: build-test
+    needs: [build-test, unit-tests]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
 
