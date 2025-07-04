@@ -9,5 +9,9 @@ module.exports = {
     + '|react-navigation|@react-navigation'
     + '|@unimodules|unimodules|sentry-expo|native-base|@sentry)/)',
   ],
-  moduleNameMapper: { '^~/(.*)$': '<rootDir>/$1' },
+  moduleNameMapper: {
+    '^~/(.*)$': '<rootDir>/$1',
+    '^@/(.*)$': '<rootDir>/$1',
+    '\\.(png|jpe?g|gif|svg)$': '<rootDir>/__mocks__/fileMock.js',
+  },
 };
