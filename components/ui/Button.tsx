@@ -123,6 +123,7 @@ export default function Button({
         style,
       ]}
       activeOpacity={0.7}
+      accessibilityRole="button"
       {...props}
     >
       {isLoading ? (

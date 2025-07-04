@@ -47,7 +47,7 @@ export default function ProductCard({
   };
 
   return (
-    <TouchableOpacity activeOpacity={0.7} onPress={onPress}>
+    <TouchableOpacity activeOpacity={0.7} onPress={onPress} accessibilityRole="button">
       <Card variant="elevated" style={styles.card}>
         <View style={styles.container}>
           <Image source={{ uri: imageUrl }} style={styles.image} />

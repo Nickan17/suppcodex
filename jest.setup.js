@@ -1,6 +1,10 @@
 // Better assertions for React Native
 import '@testing-library/jest-native/extend-expect';
 
+// Polyfill setImmediate/clearImmediate for React Native's use of timers
+global.setImmediate = global.setImmediate || ((fn, ...args) => setTimeout(fn, 0, ...args));
+global.clearImmediate = global.clearImmediate || clearTimeout;
+
 // Polyfill fetch / Headers / Request / Response
 import 'whatwg-fetch';
 

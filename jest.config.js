@@ -7,5 +7,6 @@ module.exports = {
     '^~/(.*)$': '<rootDir>/$1',
     '^@/(.*)$': '<rootDir>/$1',
     '\\.(png|jpe?g|gif|svg)$': '<rootDir>/__mocks__/fileMock.js',
+    '^expo/src/.*$': '<rootDir>/__mocks__/expoWinterStub.js',
   },
 };
