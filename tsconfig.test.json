@@ -1,0 +1,11 @@
+{
+  "extends": "tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react-native",
+    "esModuleInterop": true,
+    "module": "commonjs",
+    "target": "es6"
+  },
+  "include": ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"],
+  "exclude": ["node_modules"]
+}
