@@ -61,8 +61,14 @@ interface ExtractionResponse {
     firecrawlExtractHttpStatus?: number;
     firecrawlCrawlHttpStatus?: number;
     scrapflyHttpStatus?: number;
+    /**
+     * The proxy mode used for Firecrawl requests ("auto" by default, can be overridden by POST body).
+     * "auto" will first try basic, then stealth if needed (higher Firecrawl credit cost).
+     */
+    proxyMode?: string;
   };
 }
+
 
 // Helper to create consistent responses
 function createResponse(data: any, status = 200, headers: Record<string, string> = {}) {
@@ -73,10 +79,16 @@ function createResponse(data: any, status = 200, headers: Record<string, string>
 }
 
 // Helper for Firecrawl /v1/extract
-async function tryFirecrawlExtract(url: string, firecrawlKey: string): Promise<{ data: any | null, status: 'success' | 'empty' | 'failed', httpStatus?: number }> {
+/**
+ * Calls Firecrawl /v1/extract with proxy support.
+ * @param url Target URL to extract
+ * @param firecrawlKey API key
+ * @param proxyMode Proxy mode string (default: "auto"). "auto" tries basic, then stealth if needed (higher credit cost)
+ */
+async function tryFirecrawlExtract(url: string, firecrawlKey: string, proxyMode: string = "auto"): Promise<{ data: any | null, status: 'success' | 'empty' | 'failed', httpStatus?: number }> {
   const extractStart = Date.now();
   try {
-    console.log(`[${new Date().toISOString()}] Trying Firecrawl /extract...`);
+    console.log(`[${new Date().toISOString()}] Trying Firecrawl /extract with proxy: ${proxyMode}`);
     const extractRes = await fetchWithTimeout(
       "https://api.firecrawl.dev/v1/extract",
       {
@@ -87,7 +99,8 @@ async function tryFirecrawlExtract(url: string, firecrawlKey: string): Promise<{
         },
         body: JSON.stringify({
           url: url, // Firecrawl extract takes 'url' not 'urls'
-          timeout: 10000 // 10s timeout for Firecrawl's internal process
+          timeout: 10000, // 10s timeout for Firecrawl's internal process
+          proxy: proxyMode // Always send proxy
         }),
       },
       20000 // 20s total network timeout for this fetch
@@ -114,11 +127,18 @@ async function tryFirecrawlExtract(url: string, firecrawlKey: string): Promise<{
   }
 }
 
+
 // Helper for Firecrawl /v1/crawl
-async function tryFirecrawlCrawl(url: string, firecrawlKey: string): Promise<{ html: string | null, status: 'success' | 'empty' | 'failed', httpStatus?: number }> {
+/**
+ * Calls Firecrawl /v1/crawl with proxy support.
+ * @param url Target URL to crawl
+ * @param firecrawlKey API key
+ * @param proxyMode Proxy mode string (default: "auto"). "auto" tries basic, then stealth if needed (higher credit cost)
+ */
+async function tryFirecrawlCrawl(url: string, firecrawlKey: string, proxyMode: string = "auto"): Promise<{ html: string | null, status: 'success' | 'empty' | 'failed', httpStatus?: number }> {
   const crawlStart = Date.now();
   try {
-    console.log(`[${new Date().toISOString()}] Trying Firecrawl /crawl...`);
+    console.log(`[${new Date().toISOString()}] Trying Firecrawl /crawl with proxy: ${proxyMode}`);
     const crawlRes = await fetchWithTimeout(
       "https://api.firecrawl.dev/v1/crawl",
       {
@@ -130,7 +150,8 @@ async function tryFirecrawlCrawl(url: string, firecrawlKey: string): Promise<{ h
         body: JSON.stringify({
           url: url, // Firecrawl crawl takes 'url' not 'urls'
           extractorOptions: { mode: "markdown" }, // Or "html", "text"
-          timeout: 20000 // 20s timeout for Firecrawl's internal process
+          timeout: 20000, // 20s timeout for Firecrawl's internal process
+          proxy: proxyMode // Always send proxy
         }),
       },
       25000 // 25s total network timeout for this fetch
@@ -157,45 +178,47 @@ async function tryFirecrawlCrawl(url: string, firecrawlKey: string): Promise<{ h
   }
 }
 
+
+// --- Scrapfly fetch settings ---
+const SCRAPFLY_TIMEOUT_MS = 15000; // 15 seconds
+
 // Helper for Scrapfly /scrape
 async function tryScrapfly(url: string, scrapflyKey: string): Promise<{ html: string | null, status: 'success' | 'empty' | 'failed', httpStatus?: number }> {
   const scrapflyStart = Date.now();
+  console.log(`[Scrapfly] Fetching ${url} with timeout ${SCRAPFLY_TIMEOUT_MS}ms...`);
   try {
-    console.log(`[${new Date().toISOString()}] Trying Scrapfly...`);
     const qs = new URLSearchParams({
       key: scrapflyKey,
       url: url,
       render_js: "true",
       asp: "true"
     });
-    const scrapflyRes = await fetchWithTimeout(`https://api.scrapfly.io/scrape?${qs}`,
-      {}, // No extra options for POST if using GET with query params
-      30000 // 30s total network timeout for Scrapfly
+    const scrapflyRes = await fetchWithTimeout(
+      `https://api.scrapfly.io/scrape?${qs}`,
+      {},
+      SCRAPFLY_TIMEOUT_MS // Use constant for timeout
     );
-
     const scrapflyTime = Date.now() - scrapflyStart;
-
     if (scrapflyRes.ok) {
-      const data = await scrapflyRes.json(); // returns { result: { content: "<html…>" } }
+      const data = await scrapflyRes.json();
       if (data?.result?.content) {
-        console.log(`✅ [${scrapflyTime}ms] Scrapfly succeeded`);
+        console.log(`[Scrapfly] Request finished in ${scrapflyTime}ms with status: ${scrapflyRes.status}`);
         return { html: data.result.content as string, status: 'success', httpStatus: scrapflyRes.status };
       }
-      console.log(`⚠️ [${scrapflyTime}ms] Scrapfly succeeded but no content`);
+      console.log(`[Scrapfly] Request finished in ${scrapflyTime}ms but no content (status: ${scrapflyRes.status})`);
       return { html: null, status: 'empty', httpStatus: scrapflyRes.status };
     } else {
-      console.warn(`❌ Scrapfly failed: ${scrapflyRes.status} ${scrapflyRes.statusText}`);
       const errorBody = await scrapflyRes.text();
-      console.warn(`Scrapfly error details: ${errorBody.substring(0, 200)}...`); // Log first 200 chars
+      console.error(`[Scrapfly] ERROR after ${scrapflyTime}ms: ${scrapflyRes.status} ${scrapflyRes.statusText}`);
+      console.error(`[Scrapfly] Error details: ${errorBody.substring(0, 200)}...`);
       return { html: null, status: 'failed', httpStatus: scrapflyRes.status };
     }
   } catch (error) {
     const scrapflyTime = Date.now() - scrapflyStart;
-    console.warn(`❌ Scrapfly error after ${scrapflyTime}ms:`, error.message);
+    console.error(`[Scrapfly] ERROR after ${scrapflyTime}ms:`, error.message);
     return { html: null, status: 'failed', httpStatus: undefined };
   }
 }
-
 
 // Main request handler
 serve(async (req) => {
@@ -214,6 +237,7 @@ serve(async (req) => {
 
   let url: string;
   let forceScrapfly: boolean = false;
+  let proxyMode: string = "auto"; // Default proxy mode is 'auto', can be overridden by POST body
   let body;
 
   try {
@@ -230,6 +254,10 @@ serve(async (req) => {
 
     url = body?.url;
     forceScrapfly = !!body.forceScrapfly || !!body.scrapfly;
+    // Proxy mode: allow override via POST body, default to 'auto' if not provided
+    if (typeof body?.proxy === "string") {
+      proxyMode = body.proxy;
+    }
 
     // Also check query params if you want:
     const urlParams = new URL(req.url).searchParams;
@@ -263,10 +291,11 @@ serve(async (req) => {
 
     // 1. Try Firecrawl /v1/extract first (unless forceScrapfly is true or Firecrawl key is missing)
     if (!forceScrapfly && firecrawlKey) {
-      const { data, status, httpStatus } = await tryFirecrawlExtract(url, firecrawlKey);
+      const { data, status, httpStatus } = await tryFirecrawlExtract(url, firecrawlKey, proxyMode);
       meta.firecrawlExtractStatus = status;
       meta.firecrawlExtractMs = meta.timing.totalMs + (Date.now() - startTime); // Initial timing for this step
       meta.firecrawlExtractHttpStatus = httpStatus;
+      meta.proxyMode = proxyMode; // Log which proxy mode was used
 
       if (status === 'success' && data) {
         extractedData = data;
@@ -279,10 +308,11 @@ serve(async (req) => {
 
     // 2. If no structured data from extract, try Firecrawl /v1/crawl (unless forceScrapfly is true or Firecrawl key is missing)
     if (!extractedData && !forceScrapfly && firecrawlKey) {
-      const { html, status, httpStatus } = await tryFirecrawlCrawl(url, firecrawlKey);
+      const { html, status, httpStatus } = await tryFirecrawlCrawl(url, firecrawlKey, proxyMode);
       meta.firecrawlCrawlStatus = status;
       meta.firecrawlCrawlMs = (Date.now() - startTime) - (meta.firecrawlExtractMs || 0);
       meta.firecrawlCrawlHttpStatus = httpStatus;
+      meta.proxyMode = proxyMode; // Log which proxy mode was used (also for crawl)
 
       if (status === 'success' && html) {
         extractedHtml = html;
