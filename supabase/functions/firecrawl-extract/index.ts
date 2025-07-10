@@ -2,6 +2,7 @@
 
 /// <reference lib="deno.ns" />
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { DOMParser } from "https://deno.land/x/deno_dom/deno-dom-wasm.ts";
 
 // Simple fetch with timeout
 async function fetchWithTimeout(resource: string, options: RequestInit = {}, timeout = 25000) { // Increased default timeout for external APIs
@@ -48,7 +49,7 @@ interface ExtractionResponse {
   html?: string; // For raw HTML/text from Firecrawl /crawl or Scrapfly
   error?: string;
   _meta: {
-    source: 'firecrawl-extract' | 'firecrawl-crawl' | 'scrapfly' | 'none' | 'error';
+    source: 'firecrawl-extract' | 'firecrawl-crawl' | 'scrapfly' | 'scraperapi' | 'none' | 'error';
     firecrawlExtractStatus: 'success' | 'empty' | 'failed' | 'not_attempted';
     firecrawlCrawlStatus: 'success' | 'empty' | 'failed' | 'not_attempted';
     scrapflyStatus: 'success' | 'empty' | 'failed' | 'not_attempted';
@@ -61,6 +62,10 @@ interface ExtractionResponse {
     firecrawlExtractHttpStatus?: number;
     firecrawlCrawlHttpStatus?: number;
     scrapflyHttpStatus?: number;
+    scraperApiStatus?: number;
+    scraperApiMs?: number;
+    scraperApiHttpStatus?: number;
+    scraperApiBodySnippet?: string;
     /**
      * The proxy mode used for Firecrawl requests ("auto" by default, can be overridden by POST body).
      * "auto" will first try basic, then stealth if needed (higher Firecrawl credit cost).
@@ -220,6 +225,24 @@ async function tryScrapfly(url: string, scrapflyKey: string): Promise<{ html: st
   }
 }
 
+// Helper to parse basic product data from HTML
+function parseProductPage(html: string) {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  if (!doc) return null;
+
+  // Title
+  const title =
+    doc.querySelector("meta[property='og:title']")?.getAttribute("content") ??
+    doc.querySelector("title")?.textContent?.trim() ??
+    null;
+
+  // Very naive ingredient grab: first <p> or <li> containing “ingredient”
+  const ingredientNode = [...doc.querySelectorAll("p, li")]
+    .find(el => /ingredient/i.test(el.textContent || ""));
+  const ingredients = ingredientNode?.textContent?.trim() ?? null;
+
+  return { title, ingredients };
+}
 // Main request handler
 serve(async (req) => {
   const startTime = Date.now();
@@ -234,6 +257,12 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+  
+  // Bypass authentication for now
+  // const authHeader = req.headers.get('Authorization');
+  // if (!authHeader) {
+  //   return errorResponse('Missing authorization header', 200, meta);
+  // }
 
   let url: string;
   let forceScrapfly: boolean = false;
@@ -330,12 +359,48 @@ serve(async (req) => {
       if (status === 'success' && html) {
         extractedHtml = html;
         meta.source = 'scrapfly';
+        console.log("[DEBUG] Scrapfly html length:", html.length);
+      }
+    }
+
+    // 4. If still no content, fallback to ScraperAPI
+    if (!extractedData && !extractedHtml) {
+      const scraperApiKey = Deno.env.get("SCRAPERAPI_KEY");
+      if (scraperApiKey) {
+        console.log(`[${new Date().toISOString()}] [ScraperAPI] Attempting fallback for ${url}`);
+        try {
+          const apiUrl = `http://api.scraperapi.com?api_key=${scraperApiKey}&url=${encodeURIComponent(url)}&render=true`;
+          const scraperStart = Date.now();
+          const scraperRes = await fetchWithTimeout(apiUrl, {}, 60000);
+          const scraperBody = await scraperRes.text();
+          const snippet = scraperBody.substring(0, 300).replace(/\n/g, " ");
+          console.log(`[ScraperAPI] Status: ${scraperRes.status}, Body snippet: ${snippet}`);
+          meta.scraperApiStatus = scraperRes.status;
+          meta.scraperApiMs = Date.now() - scraperStart;
+          meta.scraperApiHttpStatus = scraperRes.status;
+          meta.scraperApiBodySnippet = scraperBody.slice(0, 300);
+
+          // Log verbose details on failure
+          if (!scraperRes.ok) {
+            console.error(`[ScraperAPI] ERROR ${scraperRes.status}: ${scraperBody.slice(0,300).replace(/\n/g,' ')}`);
+          }
+          if (scraperRes.ok && scraperBody && scraperBody.length > 1000) {
+            extractedHtml = scraperBody;
+            meta.source = "scraperapi";
+          }
+        } catch (err) {
+          console.error(`[ScraperAPI] ERROR:`, err.message);
+        }
+      } else {
+        console.warn("[ScraperAPI] SCRAPERAPI_KEY not set in environment.");
+>>>>>>> e42ba0e (feat: Add structured extraction (title, ingredients) to firecrawl-extract with deno_dom)
       }
     }
 
     // --- Final Response ---
     meta.timing.totalMs = Date.now() - startTime;
 
+<<<<<<< HEAD
     if (extractedData) { // Prioritize structured data from Firecrawl /extract
       console.log(`[${new Date().toISOString()}] Successfully extracted structured data via ${meta.source}`);
       return createResponse({
@@ -355,6 +420,31 @@ serve(async (req) => {
         "No content extracted from target URL after trying all methods",
         502, // 502 Bad Gateway/Proxy Error - indicates upstream issue
         meta
+=======
+    // --- Final Response ---
+    meta.timing.totalMs = Date.now() - startTime;
+
+    // Always log final meta for debugging
+    console.log("[DEBUG] Final meta before response:", JSON.stringify(meta, null, 2));
+
+    if (extractedData) {                // structured Firecrawl data
+      console.log(`[${new Date().toISOString()}] Structured data extracted via ${meta.source}`);
+      return createResponse({ data: extractedData, _meta: meta });
+    } else if (extractedHtml) {
+      // Parse basic fields
+      const parsed = parseProductPage(extractedHtml);
+      console.log(`[${new Date().toISOString()}] Raw content extracted via ${meta.source}`);
+      return createResponse({
+        html: extractedHtml,
+        parsed,          // <-- new structured object
+        _meta: meta
+      });
+    } else {                            // all methods failed
+      console.error(`❌ [${new Date().toISOString()}] All extraction methods FAILED for ${url}`);
+      return createResponse(
+        { error: "No content extracted from target URL after trying all methods", _meta: meta },
+        502
+>>>>>>> e42ba0e (feat: Add structured extraction (title, ingredients) to firecrawl-extract with deno_dom)
       );
     }
     

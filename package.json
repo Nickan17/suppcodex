@@ -22,6 +22,10 @@
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
     "@supabase/supabase-js": "^2.49.8",
+<<<<<<< HEAD
+=======
+    "axios": "^1.10.0",
+>>>>>>> e42ba0e (feat: Add structured extraction (title, ingredients) to firecrawl-extract with deno_dom)
     "dotenv": "^16.4.5",
     "expo": "~53.0.0",
     "expo-barcode-scanner": "~13.0.0",
@@ -78,14 +82,25 @@
     "babel-plugin-dynamic-import-node": "^2.3.3",
     "core-js": "^3.43.0",
     "cross-env": "^7.0.3",
+<<<<<<< HEAD
+=======
+    "eslint": "^9.0.0",
+    "eslint-config-expo": "~9.2.0",
+>>>>>>> e42ba0e (feat: Add structured extraction (title, ingredients) to firecrawl-extract with deno_dom)
     "eslint-plugin-jest": "latest",
     "jest": "^30.0.4",
     "jest-expo": "^53.0.9",
     "metro-react-native-babel-preset": "^0.77.0",
     "source-map-support": "^0.5.21",
+<<<<<<< HEAD
     "typescript": "~5.8.3",
     "whatwg-fetch": "^3.6.20",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~9.2.0"
+=======
+    "ts-jest": "^29.4.0",
+    "typescript": "~5.8.3",
+    "whatwg-fetch": "^3.6.20"
+>>>>>>> e42ba0e (feat: Add structured extraction (title, ingredients) to firecrawl-extract with deno_dom)
   }
 }
