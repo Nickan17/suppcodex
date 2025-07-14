@@ -1,6 +1,11 @@
 // supabase/functions/firecrawl-extract/index.ts
 
-/// <reference lib="deno.ns" />
+// @ts-ignore - Deno types
+declare const Deno: {
+  env: {
+    get(key: string): string | undefined;
+  };
+};
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { DOMParser } from "https://deno.land/x/deno_dom/deno-dom-wasm.ts";
 
@@ -58,6 +63,7 @@ interface ExtractionResponse {
       firecrawlExtractMs?: number;
       firecrawlCrawlMs?: number;
       scrapflyMs?: number;
+      scraperApiMs?: number;
     };
     firecrawlExtractHttpStatus?: number;
     firecrawlCrawlHttpStatus?: number;
@@ -125,10 +131,11 @@ async function tryFirecrawlExtract(url: string, firecrawlKey: string, proxyMode:
       console.warn(`❌ Firecrawl /extract failed: ${extractRes.status} ${extractRes.statusText}`);
       return { data: null, status: 'failed', httpStatus: extractRes.status };
     }
-  } catch (error) {
+  } catch (error: unknown) {
     const extractTime = Date.now() - extractStart;
-    console.warn(`❌ Firecrawl /extract error after ${extractTime}ms:`, error.message);
-    return { data: null, status: 'failed', httpStatus: undefined };
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`[Firecrawl] Error in extract (${proxyMode}):`, errorMessage);
+    return { data: null, status: 'failed', httpStatus: 500 };
   }
 }
 
@@ -187,7 +194,106 @@ async function tryFirecrawlCrawl(url: string, firecrawlKey: string, proxyMode: s
 // --- Scrapfly fetch settings ---
 const SCRAPFLY_TIMEOUT_MS = 15000; // 15 seconds
 
-// Helper for Scrapfly /scrape
+/**
+ * Calls OCR.Space API to extract text from an image
+ */
+interface OCRSpaceResponse {
+  ParsedResults?: Array<{
+    ParsedText?: string;
+  }>;
+  IsErroredOnProcessing?: boolean;
+  ErrorMessage?: string;
+  ErrorDetails?: string[];
+}
+
+async function ocrSpaceImage(imageUrl: string): Promise<string | null> {
+  const apiKey = process.env.OCRSPACE_API_KEY || 
+                (typeof Deno !== 'undefined' ? Deno.env.get('OCRSPACE_API_KEY') : undefined);
+  
+  if (!apiKey) {
+    console.error('[OCR] OCRSPACE_API_KEY is not set');
+    return null;
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append('url', imageUrl);
+    formData.append('apikey', apiKey);
+    formData.append('language', 'eng');
+    formData.append('isOverlayRequired', 'false');
+    formData.append('isTable', 'true');
+    formData.append('scale', 'true');
+    formData.append('OCREngine', '2'); // 1 = Legacy, 2 = New
+
+    const response = await fetch('https://api.ocr.space/parse/image', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'apikey': apiKey
+      }
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`OCR API error: ${response.status} ${response.statusText}\n${errorText}`);
+    }
+
+    const data = await response.json() as OCRSpaceResponse;
+
+    if (data.IsErroredOnProcessing) {
+      const errorDetails = data.ErrorDetails?.join('; ') || '';
+      throw new Error(`OCR processing error: ${data.ErrorMessage || 'Unknown error'}${errorDetails ? ` (${errorDetails})` : ''}`);
+    }
+
+    if (data?.ParsedResults?.[0]?.ParsedText) {
+      return data.ParsedResults[0].ParsedText
+        .split('\n')
+        .map(line => line.trim())
+        .filter(Boolean)
+        .join('\n')
+        .trim();
+    }
+
+    return null;
+  } catch (error: unknown) {
+    console.error('[OCR] Error in ocrSpaceImage:', error instanceof Error ? error.message : String(error));
+    return null;
+  }
+}
+
+// Type guard for error handling
+function isErrorWithMessage(error: unknown): error is { message: string } {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof (error as Record<string, unknown>).message === 'string'
+  );
+}
+
+/**
+ * Checks if a string looks like an ingredient list
+ */
+function looksLikeIngredientList(text: string | null): boolean {
+  if (!text) return false;
+  
+  const normalized = text.toLowerCase();
+  
+  // Check for common ingredient list indicators
+  const hasIngredients = /ingredients?:|contains:|made with/i.test(normalized);
+  const hasListMarkers = /[\w\s]+,|•|\*|\d+\./g.test(normalized);
+  const hasMultipleLines = normalized.includes('\n') || normalized.includes('\r');
+  
+  // Check for common ingredient list patterns
+  const hasIngredientPatterns = /(?:^|\s)(?:\d+[\s\w/]+(?:\s*[\-–]\s*\d+[\s\w/]+)?%?\s*[a-zA-Z]+(?:\s+[a-zA-Z]+)*|\b(?:organic|natural|vegan|gluten-free|non-gmo|kosher|halal|usda|fda)\b)/i.test(normalized);
+  
+  return (hasIngredients || hasListMarkers || hasIngredientPatterns) && 
+         (hasMultipleLines || normalized.length > 100);
+}
+
+/**
+ * Helper for Scrapfly /scrape
+ */
 async function tryScrapfly(url: string, scrapflyKey: string): Promise<{ html: string | null, status: 'success' | 'empty' | 'failed', httpStatus?: number }> {
   const scrapflyStart = Date.now();
   console.log(`[Scrapfly] Fetching ${url} with timeout ${SCRAPFLY_TIMEOUT_MS}ms...`);
@@ -196,7 +302,8 @@ async function tryScrapfly(url: string, scrapflyKey: string): Promise<{ html: st
       key: scrapflyKey,
       url: url,
       render_js: "true",
-      asp: "true"
+      asp: "true",
+      ocr: "true"         // Enable Scrapfly's OCR engine
     });
     const scrapflyRes = await fetchWithTimeout(
       `https://api.scrapfly.io/scrape?${qs}`,
@@ -204,6 +311,16 @@ async function tryScrapfly(url: string, scrapflyKey: string): Promise<{ html: st
       SCRAPFLY_TIMEOUT_MS // Use constant for timeout
     );
     const scrapflyTime = Date.now() - scrapflyStart;
+    
+    // Peek at the HTML that Scrapfly returned (safe clone)
+    const rawJson = await scrapflyRes.clone().json().catch(() => null);
+    const htmlSnippet =
+      rawJson?.result?.content?.slice?.(0, 500) ?? "[no result.content]";
+    console.log("[SCRAP-DEBUG]", {
+      status: scrapflyRes.status,
+      htmlFirst500: htmlSnippet.replace(/\n/g, " ")
+    });
+    
     if (scrapflyRes.ok) {
       const data = await scrapflyRes.json();
       if (data?.result?.content) {
@@ -225,33 +342,219 @@ async function tryScrapfly(url: string, scrapflyKey: string): Promise<{ html: st
   }
 }
 
-// Helper to parse basic product data from HTML
-function parseProductPage(html: string) {
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  if (!doc) return null;
+function cleanText(text: string | null) {
+  return text?.replace(/\s+/g, " ").trim() ?? null;
+}
 
-  // Title
+function findIngredients(doc: Document): string | null {
+  // Look into ProductInfo / product-single__description sections (Shopify)
+  const selectors = [
+    "#ProductInfo .rte p",
+    "#ProductInfo .rte li",
+    ".product-single__description p",
+    ".product-single__description li"
+  ];
+
+  for (const sel of selectors) {
+    const node = doc.querySelector(sel);
+    if (node && /ingredient/i.test(node.textContent || "")) {
+      return cleanText(node.textContent);
+    }
+  }
+
+  // Fallback: first p/li containing "ingredient"
+  const elements = doc.querySelectorAll('p, li, div, span');
+  for (let i = 0; i < elements.length; i++) {
+    const element = elements[i];
+    const text = element.textContent || '';
+    if (/ingredient/i.test(text)) {
+      return cleanText(text);
+    }
+  }
+  
+  return null;
+}
+
+async function tryImageOCR(html: string, pageUrl?: string): Promise<string | null> {
+  try {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    if (!doc) return null;
+    
+    // Find the most likely image containing ingredients
+    const images = Array.from(doc.querySelectorAll("img") || []) as HTMLElement[];
+    const cand = images.find(img => /supplement|nutrition|facts|panel|ingred/i.test(img.outerHTML.toLowerCase()));
+    if (!cand) {
+      console.log("[SCRAP-OCR] No suitable image found for OCR");
+      return null;
+    }
+  
+    // Get image URL and resolve relative URLs if needed
+    let imgUrl = cand.getAttribute("src") || cand.getAttribute("data-src");
+    if (!imgUrl) {
+      console.log("[SCRAP-OCR] Image found but no src/data-src attribute");
+      return null;
+    }
+    
+    // Handle relative URLs if pageUrl is provided
+    if (pageUrl && !imgUrl.startsWith('http') && !imgUrl.startsWith('//')) {
+      try {
+        imgUrl = new URL(imgUrl, pageUrl).href;
+      } catch (e) {
+        console.warn("[SCRAP-OCR] Failed to resolve image URL:", e);
+      }
+    }
+    
+    // Handle protocol-relative URLs
+    const fullUrl = imgUrl.startsWith("//") ? `https:${imgUrl}` : imgUrl;
+    console.log("[SCRAP-OCR] Sending image to OCR.Space:", fullUrl);
+    const txt = await ocrSpaceImage(fullUrl);
+    
+    if (!txt) {
+      console.log("[SCRAP-OCR] No text extracted from image");
+      return null;
+    }
+    
+    console.log("[SCRAP-OCR] OCR first 120 chars:", txt.slice(0, 120).replace(/\n/g, " "));
+    const line = txt.split(/[\n\r]+/).find((l: string) => /ingredient/i.test(l));
+    return cleanText(line || "");
+    
+  } catch (error) {
+    console.error("[SCRAP-OCR] Error in tryImageOCR:", error);
+    return null;
+  }
+}
+// -------------------------------------------------------------------
+
+async function parseProductPage(html: string, pageUrl?: string): Promise<{ title: string | null; ingredients: string | null }> {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  if (!doc) return { title: null, ingredients: null };
+
   const title =
     doc.querySelector("meta[property='og:title']")?.getAttribute("content") ??
-    doc.querySelector("title")?.textContent?.trim() ??
-    null;
+    cleanText(doc.querySelector("title")?.textContent);
 
-  // Very naive ingredient grab: first <p> or <li> containing “ingredient”
-  const ingredientNode = [...doc.querySelectorAll("p, li")]
-    .find(el => /ingredient/i.test(el.textContent || ""));
-  const ingredients = ingredientNode?.textContent?.trim() ?? null;
+  let ingredients: string | null = null;
 
+  // --- 1) Look inside every <script type="application/ld+json"> ---
+  for (const script of doc.querySelectorAll('script[type="application/ld+json"]')) {
+    try {
+      const json = JSON.parse(script.textContent || "");
+      // Shopify's product object
+      if (json?.description) {
+        const tmp = new DOMParser().parseFromString(json.description, "text/html");
+        const txt = tmp?.textContent || "";
+        const hit = txt.split(/[\n\r]+/)
+                       .map(cleanText)
+                       .find(looksLikeIngredientList);
+        if (hit) { ingredients = cleanText(hit); break; }
+      }
+      // Rare "nutrition" block
+      if (json?.nutrition?.ingredients) {
+        ingredients = cleanText(json.nutrition.ingredients);
+        break;
+      }
+    } catch { /* ignore bad JSON */ }
+  }
+
+  // --- 2) Scan obvious ingredient containers in the DOM ---
+  if (!ingredients) {
+    const nodes = doc.querySelectorAll(
+      '[id*="ingredient"],[class*="ingredient"],[data-ingredients],.ingredients,#ingredients,.product-ingredients,#product-ingredients'
+    );
+    for (const el of Array.from(nodes)) {
+      const txt = cleanText(el.textContent || "");
+      if (txt) { ingredients = txt; break; }
+    }
+  }
+
+  // --- 3) Legacy fallback selectors ---
+  if (!ingredients) ingredients = findIngredients(doc);
+
+  // --- 3) Try the Shopify.current_product assignment blob ---
+  if (!ingredients) {
+    const m = html.match(/Shopify\\.current_product\\s*=\\s*({[\s\S]+?});/);
+    if (m) {
+      try {
+        const json = JSON.parse(m[1]);
+        if (json?.content) {
+          const tmp = new DOMParser().parseFromString(json.content, "text/html");
+          const txt = tmp?.textContent || "";
+          const hit = txt.split(/[\n\r]+/)
+                         .map(cleanText)
+                         .find(looksLikeIngredientList);
+          if (hit) ingredients = cleanText(hit);
+        }
+      } catch { /* ignore parse errors */ }
+    }
+  }
+
+  // --- final regex sweep over raw HTML ---
+  if (!ingredients) {
+    const m = html.match(/ingredients?:\s*([^<]{30,400})/i);
+    if (m) ingredients = cleanText(m[0]);
+  }
+
+  // Discard short or bogus matches
+  if (ingredients && !looksLikeIngredientList(ingredients)) {
+    ingredients = null;
+  }
+
+  // If no ingredients found through normal parsing, try OCR
+  if (!ingredients) {
+    console.log("[ING-DEBUG] No ingredients found, trying OCR...");
+    const ocrResult = await tryImageOCR(html, pageUrl);
+    if (ocrResult) {
+      console.log("[ING-DEBUG] Found ingredients via OCR");
+      ingredients = ocrResult;
+    } else {
+      console.log("[ING-DEBUG] No ingredients found via OCR either");
+    }
+  } else {
+    console.log("[ING-DEBUG] Found ingredients through normal parsing");
+  }
+
+  console.log("[ING-DEBUG]", { 
+    hasIngredients: !!ingredients,
+    first100: ingredients?.slice(0, 100) 
+  });
+  
   return { title, ingredients };
+
 }
+
 // Main request handler
-serve(async (req) => {
+const handler = async (req: Request) => {
   const startTime = Date.now();
-  const meta: ExtractionResponse['_meta'] = {
+  let url: string;
+  let forceScrapfly = false;
+  let proxyMode = 'auto';
+  let body: any;
+  
+  const meta: ExtractionResponse['_meta'] & {
+    firecrawlExtractMs?: number;
+    firecrawlCrawlMs?: number;
+    scrapflyMs?: number;
+    scraperApiMs?: number;
+    firecrawlExtractHttpStatus?: number;
+    firecrawlCrawlHttpStatus?: number;
+    scrapflyHttpStatus?: number;
+    scraperApiHttpStatus?: number;
+    scraperApiStatus?: number;
+    scraperApiBodySnippet?: string;
+    proxyMode?: string;
+  } = {
     source: 'none',
     firecrawlExtractStatus: 'not_attempted',
     firecrawlCrawlStatus: 'not_attempted',
     scrapflyStatus: 'not_attempted',
-    timing: { totalMs: 0 }
+    timing: {
+      totalMs: 0,
+      firecrawlExtractMs: 0,
+      firecrawlCrawlMs: 0,
+      scrapflyMs: 0,
+      scraperApiMs: 0
+    },
+    proxyMode: 'auto'
   };
 
   if (req.method === 'OPTIONS') {
@@ -264,10 +567,7 @@ serve(async (req) => {
   //   return errorResponse('Missing authorization header', 200, meta);
   // }
 
-  let url: string;
-  let forceScrapfly: boolean = false;
-  let proxyMode: string = "auto"; // Default proxy mode is 'auto', can be overridden by POST body
-  let body;
+  // Variables already declared above
 
   try {
     if (req.method !== 'POST') {
@@ -275,8 +575,8 @@ serve(async (req) => {
     }
     try {
       body = await req.json();
-    } catch (err) {
-      console.error("Failed to parse JSON body:", err.message);
+    } catch (err: unknown) {
+      console.error("Failed to parse JSON body:", err instanceof Error ? err.message : String(err));
       return errorResponse('Invalid JSON in request body', 400, meta);
     }
     console.log("Request body:", body);
@@ -300,8 +600,8 @@ serve(async (req) => {
     }
 
     // Get API Keys
-    const firecrawlKey = Deno.env.get("FIRECRAWL_API_KEY");
-    const scrapflyKey = Deno.env.get("SCRAPFLY_API_KEY");
+    const firecrawlKey = process.env.FIRECRAWL_API_KEY || (typeof Deno !== 'undefined' ? Deno.env.get("FIRECRAWL_API_KEY") : undefined);
+    const scrapflyKey = process.env.SCRAPFLY_API_KEY || (typeof Deno !== 'undefined' ? Deno.env.get("SCRAPFLY_API_KEY") : undefined);
 
     if (!firecrawlKey && !forceScrapfly) { // Firecrawl is primary, warn if no key and not forcing Scrapfly
         console.warn("FIRECRAWL_API_KEY is not set. Will try Scrapfly if possible.");
@@ -322,8 +622,9 @@ serve(async (req) => {
     if (!forceScrapfly && firecrawlKey) {
       const { data, status, httpStatus } = await tryFirecrawlExtract(url, firecrawlKey, proxyMode);
       meta.firecrawlExtractStatus = status;
-      meta.firecrawlExtractMs = meta.timing.totalMs + (Date.now() - startTime); // Initial timing for this step
       meta.firecrawlExtractHttpStatus = httpStatus;
+      meta.timing.firecrawlExtractMs = Date.now() - startTime; // Initial timing for this step
+      meta.firecrawlExtractMs = meta.timing.firecrawlExtractMs;
       meta.proxyMode = proxyMode; // Log which proxy mode was used
 
       if (status === 'success' && data) {
@@ -340,6 +641,7 @@ serve(async (req) => {
       const { html, status, httpStatus } = await tryFirecrawlCrawl(url, firecrawlKey, proxyMode);
       meta.firecrawlCrawlStatus = status;
       meta.firecrawlCrawlMs = (Date.now() - startTime) - (meta.firecrawlExtractMs || 0);
+      meta.timing.firecrawlCrawlMs = meta.firecrawlCrawlMs;
       meta.firecrawlCrawlHttpStatus = httpStatus;
       meta.proxyMode = proxyMode; // Log which proxy mode was used (also for crawl)
 
@@ -354,6 +656,7 @@ serve(async (req) => {
       const { html, status, httpStatus } = await tryScrapfly(url, scrapflyKey as string); // Cast as string since we checked for existence above
       meta.scrapflyStatus = status;
       meta.scrapflyMs = (Date.now() - startTime) - ((meta.firecrawlExtractMs || 0) + (meta.firecrawlCrawlMs || 0));
+      meta.timing.scrapflyMs = meta.scrapflyMs;
       meta.scrapflyHttpStatus = httpStatus;
 
       if (status === 'success' && html) {
@@ -365,98 +668,79 @@ serve(async (req) => {
 
     // 4. If still no content, fallback to ScraperAPI
     if (!extractedData && !extractedHtml) {
-      const scraperApiKey = Deno.env.get("SCRAPERAPI_KEY");
+      const scraperApiKey = process.env.SCRAPERAPI_KEY || (typeof Deno !== 'undefined' ? Deno.env.get("SCRAPERAPI_KEY") : undefined);
       if (scraperApiKey) {
         console.log(`[${new Date().toISOString()}] [ScraperAPI] Attempting fallback for ${url}`);
         try {
-          const apiUrl = `http://api.scraperapi.com?api_key=${scraperApiKey}&url=${encodeURIComponent(url)}&render=true`;
+          const apiUrl =
+            `http://api.scraperapi.com?api_key=${scraperApiKey}&url=${encodeURIComponent(url)}&render=true&ocr=true`;
           const scraperStart = Date.now();
           const scraperRes = await fetchWithTimeout(apiUrl, {}, 60000);
           const scraperBody = await scraperRes.text();
-          const snippet = scraperBody.substring(0, 300).replace(/\n/g, " ");
-          console.log(`[ScraperAPI] Status: ${scraperRes.status}, Body snippet: ${snippet}`);
+
           meta.scraperApiStatus = scraperRes.status;
           meta.scraperApiMs = Date.now() - scraperStart;
           meta.scraperApiHttpStatus = scraperRes.status;
           meta.scraperApiBodySnippet = scraperBody.slice(0, 300);
 
-          // Log verbose details on failure
+          // Log on failure
           if (!scraperRes.ok) {
-            console.error(`[ScraperAPI] ERROR ${scraperRes.status}: ${scraperBody.slice(0,300).replace(/\n/g,' ')}`);
+            console.error(
+              `[ScraperAPI] ERROR ${scraperRes.status}: ${scraperBody
+                .slice(0, 300)
+                .replace(/\n/g, " ")}`
+            );
           }
+
           if (scraperRes.ok && scraperBody && scraperBody.length > 1000) {
             extractedHtml = scraperBody;
             meta.source = "scraperapi";
+            console.log("[DEBUG] ScraperAPI html length:", scraperBody.length);
           }
-        } catch (err) {
-          console.error(`[ScraperAPI] ERROR:`, err.message);
+        } catch (err: unknown) {
+          console.error("[ScraperAPI] Error:", err instanceof Error ? err.message : String(err));
         }
       } else {
         console.warn("[ScraperAPI] SCRAPERAPI_KEY not set in environment.");
->>>>>>> e42ba0e (feat: Add structured extraction (title, ingredients) to firecrawl-extract with deno_dom)
       }
     }
-
-    // --- Final Response ---
-    meta.timing.totalMs = Date.now() - startTime;
-
-<<<<<<< HEAD
-    if (extractedData) { // Prioritize structured data from Firecrawl /extract
-      console.log(`[${new Date().toISOString()}] Successfully extracted structured data via ${meta.source}`);
-      return createResponse({
-        data: extractedData,
-        _meta: meta
-      });
-    } else if (extractedHtml) { // Fallback to raw HTML/Markdown
-      console.log(`[${new Date().toISOString()}] Successfully extracted raw content via ${meta.source}`);
-      return createResponse({
-        html: extractedHtml,
-        _meta: meta
-      });
-    } else {
-      // If all methods failed
-      console.error(`❌ [${new Date().toISOString()}] All extraction methods failed for ${url}`);
-      return errorResponse(
-        "No content extracted from target URL after trying all methods",
-        502, // 502 Bad Gateway/Proxy Error - indicates upstream issue
-        meta
-=======
     // --- Final Response ---
     meta.timing.totalMs = Date.now() - startTime;
 
     // Always log final meta for debugging
     console.log("[DEBUG] Final meta before response:", JSON.stringify(meta, null, 2));
 
-    if (extractedData) {                // structured Firecrawl data
+    if (extractedData) {
+      // Structured Firecrawl data
       console.log(`[${new Date().toISOString()}] Structured data extracted via ${meta.source}`);
       return createResponse({ data: extractedData, _meta: meta });
     } else if (extractedHtml) {
-      // Parse basic fields
-      const parsed = parseProductPage(extractedHtml);
+      // Parse basic fields from HTML
+      const parsed = await parseProductPage(extractedHtml, url);
       console.log(`[${new Date().toISOString()}] Raw content extracted via ${meta.source}`);
       return createResponse({
         html: extractedHtml,
-        parsed,          // <-- new structured object
+        parsed,
         _meta: meta
       });
-    } else {                            // all methods failed
+    } else {
+      // All methods failed
       console.error(`❌ [${new Date().toISOString()}] All extraction methods FAILED for ${url}`);
       return createResponse(
         { error: "No content extracted from target URL after trying all methods", _meta: meta },
         502
->>>>>>> e42ba0e (feat: Add structured extraction (title, ingredients) to firecrawl-extract with deno_dom)
       );
     }
-    
-  } catch (error) {
+  } catch (error: unknown) {
     // Global error handler for any unexpected issues
+    const errorMessage = error instanceof Error ? error.message : String(error);
     meta.timing.totalMs = Date.now() - startTime;
-    console.error(`🔥 [${new Date().toISOString()}] Unhandled error:`, error.message);
+    console.error(`🔥 [${new Date().toISOString()}] Unhandled error:`, errorMessage);
     
     return errorResponse(
-      `An unexpected error occurred: ${error.message}`,
+      `An unexpected error occurred: ${errorMessage}`,
       500,
       meta
     );
   }
-});
+};
