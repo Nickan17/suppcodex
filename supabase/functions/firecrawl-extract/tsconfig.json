@@ -1,13 +1,15 @@
 {
   "compilerOptions": {
-    "lib": ["deno.ns", "dom", "esnext"],
+    "lib": ["dom", "esnext"],
     "target": "esnext",
     "module": "esnext",
     "strict": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true
   },
   "include": [
     "./**/*.ts"

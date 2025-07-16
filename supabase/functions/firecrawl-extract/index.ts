@@ -424,42 +424,73 @@ function downsizeShopify(url: string, maxSide = 1200): string {
 }
 
 // --- improved tryImageOCR ------------------------------------------
+function scoreCandidate(text: string): number {
+  const t = text.toLowerCase();
+
+  // Hard‑require the keyword “ingredient” (or multilingual forms)
+  if (!/ingredients?:/i.test(t)) return 0;
+
+  let score = 0;
+  if ((t.match(/,/g) || []).length >= 3)                        score += 2; // comma‑separated list
+  if (/\b(mg|mcg|g|iu|%dv)\b/i.test(t))                         score += 1; // dosage units
+  if (/\([^()]*allergen/i.test(t))                              score += 1; // allergen warnings
+  if (/(organic|natural|artificial|color|flavor)/i.test(t))     score += 1; // label keywords
+
+  // Penalize marketing fluff
+  if (/(legacy|award|smooth|experience|delicious|premium)/i.test(t)) score -= 2;
+
+  return score;
+}
+
 async function tryImageOCR(html: string, pageUrl?: string): Promise<string | null> {
   try {
+    const MAX_OCR = 12;
     const doc = new DOMParser().parseFromString(html, "text/html");
-    if (!doc) { console.log("[OCR] DOMParser returned null"); return null; }
+    if (!doc) {
+      console.log("[OCR] DOMParser returned null");
+      return null;
+    }
+
+    const allOcrTexts: string[] = [];
 
     // 1. collect raw image candidates
     const rawImgs = Array.from(doc.querySelectorAll("img"));
+    const getAlt = (img: Element) =>
+      (img.getAttribute("alt") || img.getAttribute("data-alt") || "").toLowerCase();
 
-    // 2. flatten into URLs (src, data-src, first srcset)
-    const urls = rawImgs.flatMap((img: any) => {
-      const out: string[] = [];
-      const src  = img.getAttribute("src")      || "";
-      const dsrc = img.getAttribute("data-src") || "";
-      const setParts = (img.getAttribute("srcset") || "")
-          .split(",").map((s: string) => s.trim().split(" ")[0]);
-      [src, dsrc, ...setParts].forEach(u => u && out.push(u));
-      return out;
-    });
+    const PANEL_TOKENS = {
+      strong: /supplement\s*facts|amino\s*acid\s*profile|nutrition\s*facts/i,
+      weak: /medicinal\s*ingredients?|non[- ]?medicinal|ingredients?/i,
+    };
 
-    // 3. normalise + dedupe
-    const candImgs = Array.from(new Set(
-      urls
-        .filter(u => /\.(jpe?g|png|webp)(\?.*)?$/i.test(u))
-        .map(u => u.startsWith("//") ? "https:" + u : (!/^https?:/.test(u) && pageUrl ? new URL(u, pageUrl).href : u))
-        .map(normalizeShopifyUrl)
-    )).filter(u => !/logo|flag|icon/i.test(u));
+    const ranked = Array.from(rawImgs.map((img: any) => {
+        const url = normalizeShopifyUrl(
+          (
+            img.getAttribute("src") ||
+            img.getAttribute("data-src") ||
+            (img.getAttribute("srcset") || "").split(",")[0].trim().split(" ")[0] ||
+            ""
+          ).replace(/^https?:/, "")
+        );
+        if (!/\.(jpe?g|png|webp)/i.test(url)) return null;
 
-    console.log("[OCR] Filtered candImgs:", candImgs.slice(0,10));
+        const alt = getAlt(img);
+        const strong = PANEL_TOKENS.strong.test(url) || PANEL_TOKENS.strong.test(alt);
+        const weak = PANEL_TOKENS.weak.test(url) || PANEL_TOKENS.weak.test(alt);
 
-    // 4. rank: anything mentioning facts/panel/ingred gets big boost
-    const ranked = candImgs
-      .map(u => ({ url: u, score: /supplement|nutrition|facts|panel|ingred/i.test(u) ? 10 : 1 }))
-      .sort((a,b) => b.score - a.score)
-      .slice(0, 10);
+        let score = 1;
+        if (strong) score = 20;
+        else if (weak) score = 10;
+        return { url, score };
+      })
+      .filter(Boolean)
+      // dedupe identical URLs
+      .reduce((m, o) => m.has(o!.url) ? m : m.set(o!.url, o), new Map())
+      .values())
+      .sort((a: any, b: any) => b.score - a.score)
+      .slice(0, MAX_OCR);
 
-    console.log("[OCR] Ranked URLs:", ranked.slice(0,5));
+    console.log("[OCR] Ranked URLs:", ranked);
 
     // ── C) attempt OCR on top N ──
     for (const { url, score } of ranked) {
@@ -482,17 +513,89 @@ async function tryImageOCR(html: string, pageUrl?: string): Promise<string | nul
           throw e;
         }
       }
-      if (!txt) { console.log("[OCR] empty OCR result"); continue; }
+      if (!txt) {
+        console.log("[OCR] empty OCR result");
+        continue;
+      }
 
       console.log("[OCR] raw OCR length:", txt.length);
-      console.log("[OCR] SUCCESS – returning first non-empty result");
-      const cleanedText = cleanText(txt);
-      if (!cleanedText) continue;
-      const cleaned = cleanedText
-          .replace(/^\s*SUPPLEMENT FACTS\s*/i, "")
-          .replace(/\*\*?\s*Percent Daily Values?.+$/i, "")
-          .replace(/\b(?:daily value|serving size|calories).+$/i, "");
-      return cleaned;
+      const ocrScore = scoreCandidate(txt);
+      if (ocrScore >= 2) {
+        console.log("[OCR] SUCCESS – valid OCR based on score", ocrScore);
+        return txt;
+      } else {
+        console.log("[OCR] Rejected – low OCR score", ocrScore, "→ text was:");
+        console.log(txt.slice(0, 300));
+        allOcrTexts.push(txt);
+      }
+    }
+
+    console.log("[OCR] No valid ingredient OCR found, running full fallback over all images");
+
+    const allUniqueImgs = Array.from(rawImgs.map((img: any) => {
+        const url = normalizeShopifyUrl(
+            (
+                img.getAttribute("src") ||
+                img.getAttribute("data-src") ||
+                (img.getAttribute("srcset") || "").split(",")[0].trim().split(" ")[0] ||
+                ""
+            ).replace(/^https?:/, "")
+        );
+        if (!/\.(jpe?g|png|webp)/i.test(url)) return null;
+        return { url };
+    })
+    .filter(Boolean)
+    .reduce((m, o) => m.has(o!.url) ? m : m.set(o!.url, o), new Map())
+    .values());
+
+    for (const { url } of allUniqueImgs) {
+      let imgUrl = url.startsWith("//") ? `https:${url}` : url;
+      if (pageUrl && imgUrl.startsWith("/")) imgUrl = new URL(imgUrl, pageUrl).href;
+      console.log(`[OCR] trying fallback image:`, imgUrl);
+
+      imgUrl = downsizeShopify(imgUrl, 1200);
+      console.log("[OCR] after downsize (fallback):", imgUrl);
+
+      let txt: string | null = null;
+      try {
+        txt = await ocrSpaceImage(imgUrl);
+      } catch (e) {
+        if (String(e).includes("E214")) {
+          console.log("[OCR] E214 – retrying with 800 px (fallback)");
+          txt = await ocrSpaceImage(downsizeShopify(imgUrl, 800));
+        } else {
+          throw e;
+        }
+      }
+      if (!txt) {
+        console.log("[OCR] empty OCR result (fallback)");
+        continue;
+      }
+
+      console.log("[OCR] raw OCR length (fallback):", txt.length);
+      const ocrFallbackScore = scoreCandidate(txt);
+      if (ocrFallbackScore >= 2) {
+        console.log(`[OCR] Fallback accepted (score ${ocrFallbackScore}): ${imgUrl}`);
+        console.log(txt.slice(0, 300));
+        return txt;
+      } else {
+        console.log(`[OCR] Fallback rejected (score ${ocrFallbackScore}) – text was:`);
+        console.log(txt.slice(0, 300));
+      }
+      allOcrTexts.push(txt); // Collect all OCR outputs
+    }
+
+
+    // Final fallback: Search the longest OCR output for "ingredients:".
+    if (allOcrTexts.length > 0) {
+      const longestOcrText = allOcrTexts.reduce((a, b) => a.length > b.length ? a : b);
+      const match = longestOcrText.match(/ingredients?:([\s\S]{0,400})/i);
+
+      if (match) {
+        const result = `Ingredients:${match[1].split('\n').slice(0, 3).join('\n')}`.trim();
+        console.log("[OCR] ingredients block fallback identified:", result.slice(0, 250));
+        return result;
+      }
     }
 
     console.log("[OCR] all candidates exhausted, nothing looked like ingredients");
@@ -508,38 +611,25 @@ interface ParsedProduct {
   title: string | null;
   ingredients_raw: string | null;
   numeric_doses_present: boolean;
+  ocr_fallback_log?: string;
+  ingredients?: string[];
+  allergens?: string[];
+  warnings?: string[];
+  manufacturer?: string;
   [key: string]: unknown;
 }
 async function parseProductPage(html: string, pageUrl?: string): Promise<ParsedProduct> {
-// ------- ingredient scoring helper -----------------------------
-function scoreCandidate(text: string): number {
-  const t = text.toLowerCase();
-
-  // Hard‑require the keyword “ingredient” (or multilingual forms)
-  if (!/ingredients?:/i.test(t)) return 0;
-
-  let score = 0;
-  if ((t.match(/,/g) || []).length >= 3)                        score += 2; // comma‑separated list
-  if (/\b(mg|mcg|g|iu|%dv)\b/i.test(t))                         score += 1; // dosage units
-  if (/\([^()]*allergen/i.test(t))                              score += 1; // allergen warnings
-  if (/(organic|natural|artificial|color|flavor)/i.test(t))     score += 1; // label keywords
-
-  // Penalize marketing fluff
-  if (/(legacy|award|smooth|experience|delicious|premium)/i.test(t)) score -= 2;
-
-  return score;
-}
   const MAX_HTML_LEN = 400_000;
   if (html.length > MAX_HTML_LEN) html = html.slice(0, MAX_HTML_LEN);
   const doc = new DOMParser().parseFromString(html, "text/html");
-  if (!doc) return { title: null, ingredients_raw: null, numeric_doses_present: false };
+  if (!doc) return { title: null, ingredients_raw: null, numeric_doses_present: false, ingredients: [], allergens: [], warnings: [], manufacturer: '' };
 
   const title =
     doc.querySelector("meta[property='og:title']")?.getAttribute("content") ??
     cleanText(doc.querySelector("title")?.textContent);
 
   let ingredients: string | null = null;
-  let numericDoses = false;         // NEW
+  let numericDoses = false;
   let extra: Record<string, unknown> = {};
 
   // --- 1) Look inside every <script type="application/ld+json"> ---
@@ -637,7 +727,7 @@ if (bestScore >= 2) {
     if (ocrResult) {
       console.log("[ING-DEBUG] Found ingredients via OCR");
       ingredients = ocrResult;
-          // --- optional dual‑field split ---
+      // The log message is no longer returned, so this check is removed.
     } else {
       console.log("[ING-DEBUG] No ingredients found via OCR either");
     }
@@ -652,12 +742,32 @@ if (bestScore >= 2) {
 
   if (ingredients) {
     numericDoses = /\d+(\.\d+)?\s?(g|mg|mcg|µg|iu|%)\b/i.test(ingredients);
+
+    const ingredientsMatch = ingredients.match(/ingredients:\s*([\s\S]*?)(?=\s*WARNING:|\s*ALLERGEN INFORMATION:|$)/i);
+    const ingredientsList = ingredientsMatch ? ingredientsMatch[1].split(/,|\n/).map(s => s.trim()).filter(s => s && s.length > 2 && !/warning|consult|medical|years of age/i.test(s) && s.length < 120) : [];
+    console.log("[STRUCTURE] Cleaned ingredients list:", ingredientsList);
+    extra.ingredients = ingredientsList;
+
+    const allergensMatch = ingredients.match(/allergen information:\s*([\s\S]*?)(?=\s*WARNING:|$)/i);
+    const allergensList = allergensMatch ? allergensMatch[1].split(/,|\n|;/).map(s => s.trim()).filter(Boolean) : [];
+    console.log("[STRUCTURE] Extracted allergens:", allergensList);
+    extra.allergens = allergensList;
+
+    const warningsMatch = ingredients.match(/warning:\s*([\s\S]*)/i);
+    const warningsList = warningsMatch ? warningsMatch[1].split('\n').map(s => s.trim()).filter(Boolean) : [];
+    console.log("[STRUCTURE] Extracted warnings:", warningsList);
+    extra.warnings = warningsList;
+
+    const manufacturerMatch = ingredients.match(/manufactured for and distributed by\s*([\s\S]*)/i);
+    const manufacturerText = manufacturerMatch ? manufacturerMatch[1].trim() : '';
+    console.log("[STRUCTURE] Manufacturer found:", manufacturerText);
+    extra.manufacturer = manufacturerText;
   }
 
   if (!ingredients) {
     console.log('[ING‑DEBUG] No high-confidence ingredient candidates found');
   }
-  return { title, ingredients_raw: ingredients, numeric_doses_present: numericDoses, ...extra };
+  return { title, ingredients_raw: ingredients, numeric_doses_present: numericDoses, ...extra, ingredients: (extra.ingredients as string[]) || [], allergens: (extra.allergens as string[]) || [], warnings: (extra.warnings as string[]) || [], manufacturer: extra.manufacturer as string || '' };
 
 }
 
