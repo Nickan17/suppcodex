@@ -185,7 +185,7 @@ async function tryFirecrawlCrawl(url: string, firecrawlKey: string, proxyMode: s
     }
   } catch (error) {
     const crawlTime = Date.now() - crawlStart;
-    console.warn(`❌ Firecrawl /crawl error after ${crawlTime}ms:`, error.message);
+    console.warn(`❌ Firecrawl /crawl error after ${crawlTime}ms:`, (error as Error).message);
     return { html: null, status: 'failed', httpStatus: undefined };
   }
 }
@@ -207,8 +207,7 @@ interface OCRSpaceResponse {
 }
 
 async function ocrSpaceImage(imageUrl: string): Promise<string | null> {
-  const apiKey = process.env.OCRSPACE_API_KEY || 
-                (typeof Deno !== 'undefined' ? Deno.env.get('OCRSPACE_API_KEY') : undefined);
+  const apiKey = Deno.env.get('OCRSPACE_API_KEY');
   
   if (!apiKey) {
     console.error('[OCR] OCRSPACE_API_KEY is not set');
@@ -225,13 +224,13 @@ async function ocrSpaceImage(imageUrl: string): Promise<string | null> {
     formData.append('scale', 'true');
     formData.append('OCREngine', '2'); // 1 = Legacy, 2 = New
 
-    const response = await fetch('https://api.ocr.space/parse/image', {
+    const response = await fetchWithTimeout('https://api.ocr.space/parse/image', {
       method: 'POST',
       body: formData,
       headers: {
         'apikey': apiKey
       }
-    });
+    }, 10000); // 10-second timeout for OCR
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -241,7 +240,9 @@ async function ocrSpaceImage(imageUrl: string): Promise<string | null> {
     const data = await response.json() as OCRSpaceResponse;
 
     if (data.IsErroredOnProcessing) {
-      const errorDetails = data.ErrorDetails?.join('; ') || '';
+      const errorDetails = Array.isArray(data.ErrorDetails)
+          ? data.ErrorDetails.join('; ')
+          : (data.ErrorDetails ?? '');
       throw new Error(`OCR processing error: ${data.ErrorMessage || 'Unknown error'}${errorDetails ? ` (${errorDetails})` : ''}`);
     }
 
@@ -280,7 +281,8 @@ function looksLikeIngredientList(text: string | null): boolean {
   const normalized = text.toLowerCase();
   
   // Check for common ingredient list indicators
-  const hasIngredients = /ingredients?:|contains:|made with/i.test(normalized);
+  const hasIngredients =
+    /ingredients?:|medicinal ingredients?|non[- ]?medicinal|supplement facts/i.test(normalized);
   const hasListMarkers = /[\w\s]+,|•|\*|\d+\./g.test(normalized);
   const hasMultipleLines = normalized.includes('\n') || normalized.includes('\r');
   
@@ -337,7 +339,7 @@ async function tryScrapfly(url: string, scrapflyKey: string): Promise<{ html: st
     }
   } catch (error) {
     const scrapflyTime = Date.now() - scrapflyStart;
-    console.error(`[Scrapfly] ERROR after ${scrapflyTime}ms:`, error.message);
+    console.error(`[Scrapfly] ERROR after ${scrapflyTime}ms:`, (error as Error).message);
     return { html: null, status: 'failed', httpStatus: undefined };
   }
 }
@@ -375,65 +377,260 @@ function findIngredients(doc: Document): string | null {
   return null;
 }
 
+// --- improved tryImageOCR ------------------------------------------
+/**
+ * Shopify image URLs can have funny variants. This function tries to strip
+ * them off so we’re left with the basic, original URL.
+ *
+ * @example
+ * //cdn.shopify.com/s/files/1/0267/9243/7883/products/quattro-vanilla_2048x.png?v=1649275777
+ * ↓
+ * //cdn.shopify.com/s/files/1/0267/9243/7883/products/quattro-vanilla.png
+ */
+function normalizeShopifyUrl(url: string): string {
+  try {
+    const u = new URL(url.startsWith("//") ? "https:" + url : url);
+    if (!u.hostname.endsWith("cdn.shopify.com") && !u.hostname.endsWith("magnumsupps.com")) return url;
+
+    // Strip size-related suffixes like _2048x, _large, etc.
+    u.pathname = u.pathname.replace(/(_\d+x\d*|\.pico|\.icon|\.thumb|\.small|\.compact|\.medium|\.large|\.grande|\.original|_\d+x|x\d+)/i, "");
+    // Strip version parameter
+    u.searchParams.delete("v");
+
+    return u.toString().replace(/^https?:/, ""); // Return protocol-relative URL
+  } catch {
+    return url; // Return original URL on parse error
+  }
+}
+
+/**
+ * Shopify CDN lets you request smaller variants simply by changing the
+ * “_2048x” (or similar) token or by appending ?width=N.  We use that to
+ * make sure the image stays < 1 MB, below OCR.Space’s limit.
+ */
+function downsizeShopify(url: string, maxSide = 1200): string {
+  try {
+    const u = new URL(url.startsWith("//") ? "https:" + url : url);
+
+    if (!u.hostname.includes("cdn.shopify.com") && !u.hostname.includes("magnumsupps.com")) return url;
+
+    // Replace “…_2048x2048.” or “…_2048x.” with “…_1200x.”
+    u.pathname = u.pathname.replace(/_(\d+x\d+)?\./, `_${maxSide}x.`);
+    // Fallback: add explicit width param if absent
+    if (!u.searchParams.has("width")) u.searchParams.set("width", String(maxSide));
+
+    return u.toString();
+  } catch { return url; }
+}
+
+// --- improved tryImageOCR ------------------------------------------
+function scoreCandidate(text: string): number {
+  const t = text.toLowerCase();
+
+  // Hard‑require the keyword “ingredient” (or multilingual forms)
+  if (!/ingredients?:/i.test(t)) return 0;
+
+  let score = 0;
+  if ((t.match(/,/g) || []).length >= 3)                        score += 2; // comma‑separated list
+  if (/\b(mg|mcg|g|iu|%dv)\b/i.test(t))                         score += 1; // dosage units
+  if (/\([^()]*allergen/i.test(t))                              score += 1; // allergen warnings
+  if (/(organic|natural|artificial|color|flavor)/i.test(t))     score += 1; // label keywords
+
+  // Penalize marketing fluff
+  if (/(legacy|award|smooth|experience|delicious|premium)/i.test(t)) score -= 2;
+
+  return score;
+}
+
 async function tryImageOCR(html: string, pageUrl?: string): Promise<string | null> {
   try {
+    const MAX_OCR = 12;
     const doc = new DOMParser().parseFromString(html, "text/html");
-    if (!doc) return null;
-    
-    // Find the most likely image containing ingredients
-    const images = Array.from(doc.querySelectorAll("img") || []) as HTMLElement[];
-    const cand = images.find(img => /supplement|nutrition|facts|panel|ingred/i.test(img.outerHTML.toLowerCase()));
-    if (!cand) {
-      console.log("[SCRAP-OCR] No suitable image found for OCR");
+    if (!doc) {
+      console.log("[OCR] DOMParser returned null");
       return null;
     }
-  
-    // Get image URL and resolve relative URLs if needed
-    let imgUrl = cand.getAttribute("src") || cand.getAttribute("data-src");
-    if (!imgUrl) {
-      console.log("[SCRAP-OCR] Image found but no src/data-src attribute");
-      return null;
-    }
-    
-    // Handle relative URLs if pageUrl is provided
-    if (pageUrl && !imgUrl.startsWith('http') && !imgUrl.startsWith('//')) {
+
+    const allOcrTexts: string[] = [];
+
+    // 1. collect raw image candidates
+    const rawImgs = Array.from(doc.querySelectorAll("img"));
+    const getAlt = (img: Element) =>
+      (img.getAttribute("alt") || img.getAttribute("data-alt") || "").toLowerCase();
+
+    const PANEL_TOKENS = {
+      strong: /supplement\s*facts|amino\s*acid\s*profile|nutrition\s*facts/i,
+      weak: /medicinal\s*ingredients?|non[- ]?medicinal|ingredients?/i,
+    };
+
+    const ranked = Array.from(rawImgs.map((img: any) => {
+        const url = normalizeShopifyUrl(
+          (
+            img.getAttribute("src") ||
+            img.getAttribute("data-src") ||
+            (img.getAttribute("srcset") || "").split(",")[0].trim().split(" ")[0] ||
+            ""
+          ).replace(/^https?:/, "")
+        );
+        if (!/\.(jpe?g|png|webp)/i.test(url)) return null;
+
+        const alt = getAlt(img);
+        const strong = PANEL_TOKENS.strong.test(url) || PANEL_TOKENS.strong.test(alt);
+        const weak = PANEL_TOKENS.weak.test(url) || PANEL_TOKENS.weak.test(alt);
+
+        let score = 1;
+        if (strong) score = 20;
+        else if (weak) score = 10;
+        return { url, score };
+      })
+      .filter(Boolean)
+      // dedupe identical URLs
+      .reduce((m, o) => m.has(o!.url) ? m : m.set(o!.url, o), new Map())
+      .values())
+      .sort((a: any, b: any) => b.score - a.score)
+      .slice(0, MAX_OCR);
+
+    console.log("[OCR] Ranked URLs:", ranked);
+
+    // ── C) attempt OCR on top N ──
+    for (const { url, score } of ranked) {
+      let imgUrl = url.startsWith("//") ? `https:${url}` : url;
+      if (pageUrl && imgUrl.startsWith("/")) imgUrl = new URL(imgUrl, pageUrl).href;
+      console.log(`[OCR] trying image (score ${score}):`, imgUrl);
+
+      // shrink oversize Shopify images so OCR.Space doesn’t throw E214
+      imgUrl = downsizeShopify(imgUrl, 1200);
+      console.log("[OCR] after downsize:", imgUrl);
+
+      let txt: string | null = null;
       try {
-        imgUrl = new URL(imgUrl, pageUrl).href;
+        txt = await ocrSpaceImage(imgUrl);
       } catch (e) {
-        console.warn("[SCRAP-OCR] Failed to resolve image URL:", e);
+        if (String(e).includes("E214")) {
+          console.log("[OCR] E214 – retrying with 800 px");
+          txt = await ocrSpaceImage(downsizeShopify(imgUrl, 800));
+        } else {
+          throw e;
+        }
+      }
+      if (!txt) {
+        console.log("[OCR] empty OCR result");
+        continue;
+      }
+
+      console.log("[OCR] raw OCR length:", txt.length);
+      const ocrScore = scoreCandidate(txt);
+      if (ocrScore >= 2) {
+        console.log("[OCR] SUCCESS – valid OCR based on score", ocrScore);
+        return txt;
+      } else {
+        console.log("[OCR] Rejected – low OCR score", ocrScore, "→ text was:");
+        console.log(txt.slice(0, 300));
+        allOcrTexts.push(txt);
       }
     }
-    
-    // Handle protocol-relative URLs
-    const fullUrl = imgUrl.startsWith("//") ? `https:${imgUrl}` : imgUrl;
-    console.log("[SCRAP-OCR] Sending image to OCR.Space:", fullUrl);
-    const txt = await ocrSpaceImage(fullUrl);
-    
-    if (!txt) {
-      console.log("[SCRAP-OCR] No text extracted from image");
-      return null;
+
+    console.log("[OCR] No valid ingredient OCR found, running full fallback over all images");
+
+    const allUniqueImgs = Array.from(rawImgs.map((img: any) => {
+        const url = normalizeShopifyUrl(
+            (
+                img.getAttribute("src") ||
+                img.getAttribute("data-src") ||
+                (img.getAttribute("srcset") || "").split(",")[0].trim().split(" ")[0] ||
+                ""
+            ).replace(/^https?:/, "")
+        );
+        if (!/\.(jpe?g|png|webp)/i.test(url)) return null;
+        return { url };
+    })
+    .filter(Boolean)
+    .reduce((m, o) => m.has(o!.url) ? m : m.set(o!.url, o), new Map())
+    .values());
+
+    for (const { url } of allUniqueImgs) {
+      let imgUrl = url.startsWith("//") ? `https:${url}` : url;
+      if (pageUrl && imgUrl.startsWith("/")) imgUrl = new URL(imgUrl, pageUrl).href;
+      console.log(`[OCR] trying fallback image:`, imgUrl);
+
+      imgUrl = downsizeShopify(imgUrl, 1200);
+      console.log("[OCR] after downsize (fallback):", imgUrl);
+
+      let txt: string | null = null;
+      try {
+        txt = await ocrSpaceImage(imgUrl);
+      } catch (e) {
+        if (String(e).includes("E214")) {
+          console.log("[OCR] E214 – retrying with 800 px (fallback)");
+          txt = await ocrSpaceImage(downsizeShopify(imgUrl, 800));
+        } else {
+          throw e;
+        }
+      }
+      if (!txt) {
+        console.log("[OCR] empty OCR result (fallback)");
+        continue;
+      }
+
+      console.log("[OCR] raw OCR length (fallback):", txt.length);
+      const ocrFallbackScore = scoreCandidate(txt);
+      if (ocrFallbackScore >= 2) {
+        console.log(`[OCR] Fallback accepted (score ${ocrFallbackScore}): ${imgUrl}`);
+        console.log(txt.slice(0, 300));
+        return txt;
+      } else {
+        console.log(`[OCR] Fallback rejected (score ${ocrFallbackScore}) – text was:`);
+        console.log(txt.slice(0, 300));
+      }
+      allOcrTexts.push(txt); // Collect all OCR outputs
     }
-    
-    console.log("[SCRAP-OCR] OCR first 120 chars:", txt.slice(0, 120).replace(/\n/g, " "));
-    const line = txt.split(/[\n\r]+/).find((l: string) => /ingredient/i.test(l));
-    return cleanText(line || "");
-    
-  } catch (error) {
-    console.error("[SCRAP-OCR] Error in tryImageOCR:", error);
+
+
+    // Final fallback: Search the longest OCR output for "ingredients:".
+    if (allOcrTexts.length > 0) {
+      const longestOcrText = allOcrTexts.reduce((a, b) => a.length > b.length ? a : b);
+      const match = longestOcrText.match(/ingredients?:([\s\S]{0,400})/i);
+
+      if (match) {
+        const result = `Ingredients:${match[1].split('\n').slice(0, 3).join('\n')}`.trim();
+        console.log("[OCR] ingredients block fallback identified:", result.slice(0, 250));
+        return result;
+      }
+    }
+
+    console.log("[OCR] all candidates exhausted, nothing looked like ingredients");
+    return null;
+  } catch (err) {
+    console.error("[OCR] Fatal in tryImageOCR:", err);
     return null;
   }
 }
 // -------------------------------------------------------------------
 
-async function parseProductPage(html: string, pageUrl?: string): Promise<{ title: string | null; ingredients: string | null }> {
+interface ParsedProduct {
+  title: string | null;
+  ingredients_raw: string | null;
+  numeric_doses_present: boolean;
+  ocr_fallback_log?: string;
+  ingredients?: string[];
+  allergens?: string[];
+  warnings?: string[];
+  manufacturer?: string;
+  [key: string]: unknown;
+}
+async function parseProductPage(html: string, pageUrl?: string): Promise<ParsedProduct> {
+  const MAX_HTML_LEN = 400_000;
+  if (html.length > MAX_HTML_LEN) html = html.slice(0, MAX_HTML_LEN);
   const doc = new DOMParser().parseFromString(html, "text/html");
-  if (!doc) return { title: null, ingredients: null };
+  if (!doc) return { title: null, ingredients_raw: null, numeric_doses_present: false, ingredients: [], allergens: [], warnings: [], manufacturer: '' };
 
   const title =
     doc.querySelector("meta[property='og:title']")?.getAttribute("content") ??
     cleanText(doc.querySelector("title")?.textContent);
 
   let ingredients: string | null = null;
+  let numericDoses = false;
+  let extra: Record<string, unknown> = {};
 
   // --- 1) Look inside every <script type="application/ld+json"> ---
   for (const script of doc.querySelectorAll('script[type="application/ld+json"]')) {
@@ -456,16 +653,27 @@ async function parseProductPage(html: string, pageUrl?: string): Promise<{ title
     } catch { /* ignore bad JSON */ }
   }
 
-  // --- 2) Scan obvious ingredient containers in the DOM ---
-  if (!ingredients) {
-    const nodes = doc.querySelectorAll(
-      '[id*="ingredient"],[class*="ingredient"],[data-ingredients],.ingredients,#ingredients,.product-ingredients,#product-ingredients'
-    );
-    for (const el of Array.from(nodes)) {
-      const txt = cleanText(el.textContent || "");
-      if (txt) { ingredients = txt; break; }
-    }
-  }
+// gather every visible node that MIGHT be an ingredient list
+const candidates: string[] = [];
+doc.querySelectorAll(
+  '[id*="ingredient" i],[class*="ingredient" i], .rte p, .rte li, p, li'
+).forEach((el: Element) => {
+  const txt = cleanText(el.textContent);
+  if (txt && txt.length > 30 && /ingredient/i.test(txt)) candidates.push(txt);
+});
+
+// choose best‑scored candidate
+let best = '';
+let bestScore = 0;
+for (const c of candidates) {
+  const s = scoreCandidate(c);
+  if (s > bestScore) { bestScore = s; best = c; }
+}
+if (bestScore >= 2) {
+  ingredients = best;
+  console.log('[ING‑DEBUG] chose candidate with score', bestScore,
+              'first120:', best.slice(0,120));
+}
 
   // --- 3) Legacy fallback selectors ---
   if (!ingredients) ingredients = findIngredients(doc);
@@ -494,8 +702,21 @@ async function parseProductPage(html: string, pageUrl?: string): Promise<{ title
     if (m) ingredients = cleanText(m[0]);
   }
 
-  // Discard short or bogus matches
-  if (ingredients && !looksLikeIngredientList(ingredients)) {
+  if (ingredients) {
+    const tooShort = ingredients.length < 30;
+    const marketing = /magnum|science|results|quality|legacy blend/i.test(ingredients);
+    const noComma   = !/,/.test(ingredients);            // real lists almost always have commas
+    const noNumbers = !/\d/.test(ingredients);
+
+    if (tooShort || (marketing && noComma && noNumbers)) {
+      ingredients = null;      // treat as bogus so we fall through to OCR
+    }
+  }
+
+
+  // Candidate has no numbers → forcing OCR
+  if (ingredients && !/\d/.test(ingredients)) {
+    console.log('[ING-DEBUG] Candidate has no numbers, forcing OCR');
     ingredients = null;
   }
 
@@ -506,6 +727,7 @@ async function parseProductPage(html: string, pageUrl?: string): Promise<{ title
     if (ocrResult) {
       console.log("[ING-DEBUG] Found ingredients via OCR");
       ingredients = ocrResult;
+      // The log message is no longer returned, so this check is removed.
     } else {
       console.log("[ING-DEBUG] No ingredients found via OCR either");
     }
@@ -513,12 +735,39 @@ async function parseProductPage(html: string, pageUrl?: string): Promise<{ title
     console.log("[ING-DEBUG] Found ingredients through normal parsing");
   }
 
-  console.log("[ING-DEBUG]", { 
+  console.log("[ING-DEBUG]", {
     hasIngredients: !!ingredients,
-    first100: ingredients?.slice(0, 100) 
+    first100: ingredients?.slice(0, 100)
   });
-  
-  return { title, ingredients };
+
+  if (ingredients) {
+    numericDoses = /\d+(\.\d+)?\s?(g|mg|mcg|µg|iu|%)\b/i.test(ingredients);
+
+    const ingredientsMatch = ingredients.match(/ingredients:\s*([\s\S]*?)(?=\s*WARNING:|\s*ALLERGEN INFORMATION:|$)/i);
+    const ingredientsList = ingredientsMatch ? ingredientsMatch[1].split(/,|\n/).map(s => s.trim()).filter(s => s && s.length > 2 && !/warning|consult|medical|years of age/i.test(s) && s.length < 120) : [];
+    console.log("[STRUCTURE] Cleaned ingredients list:", ingredientsList);
+    extra.ingredients = ingredientsList;
+
+    const allergensMatch = ingredients.match(/allergen information:\s*([\s\S]*?)(?=\s*WARNING:|$)/i);
+    const allergensList = allergensMatch ? allergensMatch[1].split(/,|\n|;/).map(s => s.trim()).filter(Boolean) : [];
+    console.log("[STRUCTURE] Extracted allergens:", allergensList);
+    extra.allergens = allergensList;
+
+    const warningsMatch = ingredients.match(/warning:\s*([\s\S]*)/i);
+    const warningsList = warningsMatch ? warningsMatch[1].split('\n').map(s => s.trim()).filter(Boolean) : [];
+    console.log("[STRUCTURE] Extracted warnings:", warningsList);
+    extra.warnings = warningsList;
+
+    const manufacturerMatch = ingredients.match(/manufactured for and distributed by\s*([\s\S]*)/i);
+    const manufacturerText = manufacturerMatch ? manufacturerMatch[1].trim() : '';
+    console.log("[STRUCTURE] Manufacturer found:", manufacturerText);
+    extra.manufacturer = manufacturerText;
+  }
+
+  if (!ingredients) {
+    console.log('[ING‑DEBUG] No high-confidence ingredient candidates found');
+  }
+  return { title, ingredients_raw: ingredients, numeric_doses_present: numericDoses, ...extra, ingredients: (extra.ingredients as string[]) || [], allergens: (extra.allergens as string[]) || [], warnings: (extra.warnings as string[]) || [], manufacturer: extra.manufacturer as string || '' };
 
 }
 
@@ -600,8 +849,8 @@ const handler = async (req: Request) => {
     }
 
     // Get API Keys
-    const firecrawlKey = process.env.FIRECRAWL_API_KEY || (typeof Deno !== 'undefined' ? Deno.env.get("FIRECRAWL_API_KEY") : undefined);
-    const scrapflyKey = process.env.SCRAPFLY_API_KEY || (typeof Deno !== 'undefined' ? Deno.env.get("SCRAPFLY_API_KEY") : undefined);
+    const firecrawlKey = Deno.env.get("FIRECRAWL_API_KEY");
+    const scrapflyKey = Deno.env.get("SCRAPFLY_API_KEY");
 
     if (!firecrawlKey && !forceScrapfly) { // Firecrawl is primary, warn if no key and not forcing Scrapfly
         console.warn("FIRECRAWL_API_KEY is not set. Will try Scrapfly if possible.");
@@ -668,12 +917,12 @@ const handler = async (req: Request) => {
 
     // 4. If still no content, fallback to ScraperAPI
     if (!extractedData && !extractedHtml) {
-      const scraperApiKey = process.env.SCRAPERAPI_KEY || (typeof Deno !== 'undefined' ? Deno.env.get("SCRAPERAPI_KEY") : undefined);
+      const scraperApiKey = Deno.env.get("SCRAPERAPI_KEY");
       if (scraperApiKey) {
         console.log(`[${new Date().toISOString()}] [ScraperAPI] Attempting fallback for ${url}`);
         try {
           const apiUrl =
-            `http://api.scraperapi.com?api_key=${scraperApiKey}&url=${encodeURIComponent(url)}&render=true&ocr=true`;
+            `https://api.scraperapi.com?api_key=${scraperApiKey}&url=${encodeURIComponent(url)}&render=true&ocr=true&premium=true`;
           const scraperStart = Date.now();
           const scraperRes = await fetchWithTimeout(apiUrl, {}, 60000);
           const scraperBody = await scraperRes.text();
@@ -720,7 +969,7 @@ const handler = async (req: Request) => {
       console.log(`[${new Date().toISOString()}] Raw content extracted via ${meta.source}`);
       return createResponse({
         html: extractedHtml,
-        parsed,
+        parsed,           // now carries ingredients_raw + numeric_doses_present
         _meta: meta
       });
     } else {
@@ -744,3 +993,4 @@ const handler = async (req: Request) => {
     );
   }
 };
+serve(handler);

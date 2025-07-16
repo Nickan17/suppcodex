@@ -172,31 +172,38 @@ serve(async (req) => {
       return { ...structured, html };  // may contain html string
     }
 
-    const { product_name, brand, ingredients, html } = safeExtractProduct(data);
+    const parsed = data.parsed;
+    if (!parsed) {
+        return new Response(JSON.stringify({ error: "Request body must contain a 'parsed' object from firecrawl-extract" }), { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    }
 
-    if (!product_name) {
-      console.error("product_name missing in Firecrawl response");
+    const { ingredients_raw, numeric_doses_present, title } = parsed;
+
+    if (!title) {
+      console.error("title missing in parsed data");
       return new Response(
-        JSON.stringify({ error: "Parse error – product_name missing" }),
+        JSON.stringify({ error: "Parse error – title missing" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    // Build OpenRouter prompt with HTML fallback
     const systemPrompt = `
-You are a supplement-analysis assistant. Given structured JSON *or* raw HTML, extract:
+You are a supplement-analysis assistant. Given structured JSON, extract:
 • product_name
 • brand
 • full ingredient list with doses
 Then score the product 0-100 and give a short justification.
+If numeric_doses_present is false, Transparency ≤ 4 and Clinical Doses ≤ 3 unless reliable external data is provided.
 `;
-    const userContent = html
-      ? `RAW HTML:\n${html}`
-      : JSON.stringify({ product_name, brand, ingredients });
-    if (html) console.log("🔄 Fallback: passing raw HTML to OpenRouter");
 
-    const simple = await score({ product_name, brand, ingredients, html, systemPrompt, userContent }, scraped);
-    const full = expandToFull(simple, product_name);
+    const userContent = JSON.stringify({
+      product_name: title,
+      ingredients: ingredients_raw,
+      numeric_doses_present,
+    });
+
+    const simple = await score({ systemPrompt, userContent }, scraped);
+    const full = expandToFull(simple, title);
 
     const supabase = createClient(
       Deno.env.get("EXPO_PUBLIC_SUPABASE_URL")!,
