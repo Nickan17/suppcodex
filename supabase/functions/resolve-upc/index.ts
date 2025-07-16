@@ -2,12 +2,20 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { getFSAccessToken } from "../_shared/fatsecret.ts";
 import type { SupplementData, Ingredient } from "../../_shared/types.ts";
+import { validateEnvironmentOrThrow } from "../_shared/env-validation.ts";
+
+// ADDED: Validate environment at startup - fail fast if misconfigured
+const ENV_CONFIG = validateEnvironmentOrThrow();
 
 const DSLD_URL = "https://api.ods.od.nih.gov/dsld/v9/search-filter";
 
 async function fetchFromDSLD(upc: string): Promise<SupplementData | null> {
-  const key = Deno.env.get("DSLD_API_KEY");
-  if (!key) return null;
+  // IMPROVED: Use validated environment config
+  const key = ENV_CONFIG.DSLD_API_KEY;
+  if (!key) {
+    console.warn("[DSLD] API key not set - skipping DSLD lookup");
+    return null;
+  }
   const url = `${DSLD_URL}?q="${encodeURIComponent(upc)}"`;
   try {
     const res = await fetch(url, {
@@ -38,6 +46,12 @@ async function fetchFromDSLD(upc: string): Promise<SupplementData | null> {
 
 async function fetchFromFatSecret(upc: string): Promise<SupplementData | null> {
   try {
+    // IMPROVED: Handle case where FatSecret credentials are not configured
+    if (!ENV_CONFIG.FATSECRET_CLIENT_ID || !ENV_CONFIG.FATSECRET_CLIENT_SECRET) {
+      console.warn("[FatSecret] Credentials not configured - skipping FatSecret lookup");
+      return null;
+    }
+    
     const token = await getFSAccessToken();
     const url = `https://platform.fatsecret.com/rest/server.api?method=food.find&id_type=upc&search_expression=${upc}`;
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
