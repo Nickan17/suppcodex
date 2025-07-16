@@ -2,6 +2,10 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import type { SupplementData, SimplifiedAIResponse, FullSupplementScoreResponse } from "../../_shared/types.ts";
+import { validateEnvironmentOrThrow } from "../_shared/env-validation.ts";
+
+// ADDED: Validate environment at startup - fail fast if misconfigured
+const ENV_CONFIG = validateEnvironmentOrThrow();
 
 function expandToFull(
   r: SimplifiedAIResponse,
@@ -56,20 +60,15 @@ function expandToFull(
 }
 
 async function score(data, scraped) {
-  const key = Deno.env.get("OPENROUTER_API_KEY");
-  if (!key) {
-    console.error("score: OpenRouter API key missing!");
-    return new Response(JSON.stringify({ error: "Server configuration error: OPENROUTER_API_KEY is missing" }), {
-      status: 500,
-      headers: corsHeaders,
-    });
-  }
+  // IMPROVED: Use validated environment config instead of direct Deno.env.get
+  const key = ENV_CONFIG.OPENROUTER_API_KEY;
 
   // Use the new prompt and userContent if provided
   const systemPrompt = data.systemPrompt ?? `You are SupplementScoreAI. Using the provided data and optional scraped text, score the product. Return ONLY minified JSON with keys pid,t,dose,qual,risk,highlights. The values for 't' (transparency), 'dose' (clinical dosage/bioavailability), 'qual' (quality/testing), and 'risk' (additives/brand history) MUST be **integers representing a score from 1 to 10**. For example, 7. If a specific score cannot be determined, return '0' as the number. The 'highlights' should be an array of strings.`;
   const userContent = data.userContent ?? JSON.stringify(data);
 
   try {
+    // FIXED: Removed duplicate 'messages' array and undefined 'prompt' variable
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -85,13 +84,7 @@ async function score(data, scraped) {
         temperature: 0,
         response_format: {
           type: "json_object"
-        },
-        messages: [
-          {
-            role: "user",
-            content: prompt
-          }
-        ]
+        }
       })
     });
 
@@ -205,9 +198,10 @@ If numeric_doses_present is false, Transparency ≤ 4 and Clinical Doses ≤ 3 u
     const simple = await score({ systemPrompt, userContent }, scraped);
     const full = expandToFull(simple, title);
 
+    // IMPROVED: Use validated environment config for Supabase client
     const supabase = createClient(
-      Deno.env.get("EXPO_PUBLIC_SUPABASE_URL")!,
-      Deno.env.get("EXPO_PUBLIC_SUPABASE_ANON_KEY")!,
+      ENV_CONFIG.SUPABASE_URL,
+      ENV_CONFIG.SUPABASE_ANON_KEY,
     );
     await supabase.from("scored_products").upsert([full], { onConflict: "product_id" });
     return new Response(JSON.stringify(full), { headers: { "Content-Type": "application/json", ...corsHeaders } });

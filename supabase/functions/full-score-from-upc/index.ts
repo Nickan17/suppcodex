@@ -1,6 +1,10 @@
 /// <reference lib="deno.ns" />
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import type { SupplementData } from "../../_shared/types.ts";
+import { validateEnvironmentOrThrow, getSupabaseUrl, createInternalHeaders } from "../_shared/env-validation.ts";
+
+// ADDED: Validate environment at startup - fail fast if misconfigured
+const ENV_CONFIG = validateEnvironmentOrThrow();
 
 function postJSON(
   url: URL,
@@ -15,11 +19,8 @@ function postJSON(
 }
 
 async function findOfficialWebsite(name: string): Promise<string | null> {
-  const key = Deno.env.get("EXPO_PUBLIC_OPENROUTER_API_KEY");
-  if (!key) {
-    console.error("findOfficialWebsite: Missing OpenRouter API key");
-    return null;
-  }
+  // IMPROVED: Use validated environment config
+  const key = ENV_CONFIG.OPENROUTER_API_KEY;
   const model = Deno.env.get("OPENROUTER_SEARCH_MODEL") ?? "openai/gpt-4o-mini";
   const prompt =
     `Return ONLY the official product URL (https://...). If none, return NONE.\n${name}`;
@@ -83,15 +84,8 @@ serve(async (req: Request) => {
   try {
 
     let upc: string | null = null;
-    // Prepare headers object for all internal fetch calls
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const internalHeaders: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (serviceKey) {
-      internalHeaders["authorization"] = `Bearer ${serviceKey}`;
-      internalHeaders["apikey"] = serviceKey;
-    }
+    // IMPROVED: Use helper function for internal headers with validated environment
+    const internalHeaders = createInternalHeaders();
 
     if (req.method === "GET") {
       upc = new URL(req.url).searchParams.get("upc");
@@ -116,7 +110,8 @@ serve(async (req: Request) => {
     }
 
     // 1. Call resolve-upc function
-    const baseUrl = "https://uaqcehoocecvihubnbhp.supabase.co";
+    // FIXED: Use environment variable instead of hardcoded URL
+    const baseUrl = getSupabaseUrl();
     const resolveUpcUrl = new URL(`${baseUrl}/functions/v1/resolve-upc/`);
     resolveUpcUrl.searchParams.set("upc", upc);
     const r = await fetch(resolveUpcUrl.toString(), {

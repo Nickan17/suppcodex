@@ -8,6 +8,10 @@ declare const Deno: {
 };
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { DOMParser } from "https://deno.land/x/deno_dom/deno-dom-wasm.ts";
+import { validateEnvironmentOrThrow } from "../_shared/env-validation.ts";
+
+// ADDED: Validate environment at startup - fail fast if misconfigured
+const ENV_CONFIG = validateEnvironmentOrThrow();
 
 // Simple fetch with timeout
 async function fetchWithTimeout(resource: string, options: RequestInit = {}, timeout = 25000) { // Increased default timeout for external APIs
@@ -207,10 +211,11 @@ interface OCRSpaceResponse {
 }
 
 async function ocrSpaceImage(imageUrl: string): Promise<string | null> {
-  const apiKey = Deno.env.get('OCRSPACE_API_KEY');
+  // IMPROVED: Use validated environment config
+  const apiKey = ENV_CONFIG.OCRSPACE_API_KEY;
   
   if (!apiKey) {
-    console.error('[OCR] OCRSPACE_API_KEY is not set');
+    console.warn('[OCR] OCRSPACE_API_KEY is not set - OCR functionality will be disabled');
     return null;
   }
 
@@ -848,15 +853,12 @@ const handler = async (req: Request) => {
       return errorResponse('URL is required', 400, meta);
     }
 
-    // Get API Keys
-    const firecrawlKey = Deno.env.get("FIRECRAWL_API_KEY");
-    const scrapflyKey = Deno.env.get("SCRAPFLY_API_KEY");
+    // IMPROVED: Get API Keys from validated environment config
+    const firecrawlKey = ENV_CONFIG.FIRECRAWL_API_KEY;
+    const scrapflyKey = ENV_CONFIG.SCRAPFLY_API_KEY;
 
     if (!firecrawlKey && !forceScrapfly) { // Firecrawl is primary, warn if no key and not forcing Scrapfly
         console.warn("FIRECRAWL_API_KEY is not set. Will try Scrapfly if possible.");
-    }
-    if (!scrapflyKey) { // Scrapfly is fallback, it must be set.
-        return errorResponse('SCRAPFLY_API_KEY is not set. Fallback will not work.', 500, meta);
     }
 
     console.log(`[${new Date().toISOString()}] Starting extraction for: ${url}`);
@@ -917,7 +919,8 @@ const handler = async (req: Request) => {
 
     // 4. If still no content, fallback to ScraperAPI
     if (!extractedData && !extractedHtml) {
-      const scraperApiKey = Deno.env.get("SCRAPERAPI_KEY");
+      // IMPROVED: Use validated environment config
+      const scraperApiKey = ENV_CONFIG.SCRAPERAPI_KEY;
       if (scraperApiKey) {
         console.log(`[${new Date().toISOString()}] [ScraperAPI] Attempting fallback for ${url}`);
         try {
