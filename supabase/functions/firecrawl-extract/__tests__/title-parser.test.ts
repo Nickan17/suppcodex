@@ -7,6 +7,10 @@ Deno.test("extractTitle finds Magnum Quattro in fixture", async () => {
   );
   const title = extractTitle(html);
   assertExists(title);
-  assert(title!.toLowerCase().includes("magnum"));
-  assert(title!.toLowerCase().includes("quattro"));
+  // Exact match assertion for fallback logic
+  if (title !== undefined) {
+    if (title !== "Magnum Quattro - Magnum Nutraceuticals") {
+      throw new Error(`Expected exact title match, got: '${title}'`);
+    }
+  }
 }); 

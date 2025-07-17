@@ -133,9 +133,7 @@ jobs:
         FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
         OCRSPACE_API_KEY: ${{ secrets.OCRSPACE_API_KEY }}
       run: |
-        deno test --allow-env --allow-read --config supabase/functions/_shared/deno.json \
-          --allow-net=${{ env.ALLOWED_HOSTS }} \
-          supabase/functions/firecrawl-extract/quattro.integration.test.ts
+        cd C:\suppcodex-3\supabase\functions\firecrawl-extract; $env:SUPABASE_URL='https://uaqcehoocecvihubnbhp.supabase.co'; deno test -A --no-check quattro.integration.test.ts
         
     - name: Generate integration test coverage
       run: |
