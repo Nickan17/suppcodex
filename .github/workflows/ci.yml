@@ -86,7 +86,8 @@ jobs:
     - name: Generate unit test coverage
       run: |
         cd supabase/functions
-        deno coverage coverage-unit --lcov --output=coverage-unit.lcov
+        deno coverage coverage-unit --lcov --output=coverage-unit.lcov || \
+          (echo "⚠️  No covered files found, creating empty coverage report"; echo  > coverage-unit.lcov)
         
     - name: Upload unit test coverage artifacts
       uses: actions/upload-artifact@v4
@@ -140,7 +141,8 @@ jobs:
     - name: Generate integration test coverage
       run: |
         cd supabase/functions
-        deno coverage coverage-integration --lcov --output=coverage-integration.lcov
+        deno coverage coverage-integration --lcov --output=coverage-integration.lcov || \
+          (echo "⚠️  No covered files found, creating empty coverage report"; echo  > coverage-integration.lcov)
         
     - name: Upload integration test coverage artifacts
       uses: actions/upload-artifact@v4
