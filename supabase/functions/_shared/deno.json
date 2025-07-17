@@ -1,11 +1,9 @@
 {
-  "imports": {
-    "https://deno.land/std@0.224.0/encoding/base64.ts": "https://deno.land/std@0.224.0/encoding/base64.ts"
-  },
   "compilerOptions": {
-    "lib": ["deno.window", "deno.unstable", "dom", "es2015", "es2017"],
-    "types": [],
+    "lib": ["dom", "es2015", "es2017", "deno.window", "deno.unstable"],
     "allowImportingTsExtensions": true
   },
-  "unstable": true
+  "fmt": {
+    "exclude": ["coverage", "**/coverage/**"]
+  }
 }
