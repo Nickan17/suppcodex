@@ -216,4 +216,4 @@ jobs:
         SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
       run: |
         cd supabase
-        supabase functions deploy --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} 
+        supabase functions deploy --project-ref uaqcehoocecvihubnbhp 
