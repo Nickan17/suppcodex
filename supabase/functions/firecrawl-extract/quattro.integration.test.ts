@@ -20,7 +20,7 @@ interface ParsedProduct {
 }
 
 // Test the Quattro product page extraction
-Deno.test("firecrawl-extract - Quattro Integration Test", async (t) => {
+Deno.test("firecrawl-extract - Quattro [Integration] Test", async (t) => {
   await t.step("should extract Quattro product data successfully [Integration]", async () => {
     const testURL =
       "https://magnumsupps.com/en-us/products/quattro?variant=46056179892527";
