@@ -87,19 +87,15 @@ serve(async (req: Request) => {
     // IMPROVED: Use helper function for internal headers with validated environment
     const internalHeaders = createInternalHeaders();
 
-    if (req.method === "GET") {
-      upc = new URL(req.url).searchParams.get("upc");
-    } else if (req.method === "POST") {
-      try {
-        const body = await req.json();
-        upc = body.upc;
-      } catch (e) {
-        console.error("Error parsing POST body:", e);
-        return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
-      }
+    try {
+      const body = await req.json();
+      upc = body.upc;
+    } catch (e) {
+      console.error("Error parsing POST body:", e);
+      return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
     }
 
     if (!upc) {

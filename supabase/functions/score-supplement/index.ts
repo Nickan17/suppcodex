@@ -59,7 +59,7 @@ function expandToFull(
   };
 }
 
-async function score(data, scraped) {
+async function score(data: any, scraped: any) {
   // IMPROVED: Use validated environment config instead of direct Deno.env.get
   const key = ENV_CONFIG.OPENROUTER_API_KEY;
 
@@ -111,8 +111,9 @@ async function score(data, scraped) {
 
     return JSON.parse(txt);
 
-  } catch (error) {
-    console.error("Error in score function:", error.message || error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("Error in score function:", errorMessage);
     throw error;
   }
 }

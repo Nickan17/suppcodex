@@ -1,53 +1,53 @@
-/// <reference types="https://deno.land/x/types@v0.1/index.d.ts" />
-// This function is ready for cloud deployment using:
-// npx supabase functions deploy process-upc --no-verify-jwt
-
+/// <reference lib="deno.ns" />
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-// import { delay } from 'https://deno.land/std@0.224.0/async/delay.ts'; // 'delay' is not used, can be removed
-
-// Supabase client import
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.0";
+import { validateEnvironmentOrThrow } from "../_shared/env-validation.ts";
 
-// Environment variables (ensure these are set as Supabase secrets)
-// Using standard Supabase env var names for clarity and consistency
-const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY") ?? "";
-const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY") ?? "";
+// ADDED: Validate environment at startup - fail fast if misconfigured
+const ENV_CONFIG = validateEnvironmentOrThrow();
+
+// Constants
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? ""; // Standard Supabase project URL env var
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ??
-  ""; // Standard Supabase service key env var
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const MAX_REQUESTS_PER_MINUTE = 5;
 
-console.log(
-  "🧪 Environment Variables Loaded: FIRECRAWL_API_KEY:",
-  !!FIRECRAWL_API_KEY,
-  "OPENROUTER_API_KEY:",
-  !!OPENROUTER_API_KEY,
-  "SUPABASE_URL:",
-  !!SUPABASE_URL,
-  "SUPABASE_SERVICE_ROLE_KEY:",
-  !!SUPABASE_SERVICE_ROLE_KEY,
-);
-
-// Initialize Supabase client
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+// Initialize Supabase client with validated environment
+const supabase = createClient(ENV_CONFIG.SUPABASE_URL, ENV_CONFIG.SUPABASE_SERVICE_ROLE_KEY, {
   auth: {
     autoRefreshToken: false,
     persistSession: false,
   },
 });
 
-// Helper function: upcVariants - Placed at top-level scope (correctly done in your provided code)
-function upcVariants(raw: string): string[] {
+// Rate limiting with memory cleanup
+interface RateLimitEntry {
+  count: number;
+  lastReset: number;
+  lastAccess: number;
+}
+
+const requestCounts = new Map<string, RateLimitEntry>();
+
+// Cleanup old entries every 5 minutes to prevent memory leaks
+setInterval(() => {
+  const now = Date.now();
+  const cutoff = now - (5 * 60 * 1000);
+  for (const [ip, entry] of requestCounts.entries()) {
+    if (entry.lastAccess < cutoff) {
+      requestCounts.delete(ip);
+    }
+  }
+}, 5 * 60 * 1000);
+
+// Helper function: Generate UPC variants for API lookups
+export function upcVariants(raw: string): string[] {
   const cleaned = raw.replace(/\D/g, "");
   const ean13 = cleaned.padStart(13, "0");
   const upc12 = ean13.slice(1); // drop leading 0
   return Array.from(new Set([cleaned, upc12, ean13])); // unique list
 }
 
-// Global rate limiting constants
-const RATE_LIMIT_WINDOW_MS = 60 * 1000;
-const MAX_REQUESTS_PER_MINUTE = 5;
-const requestCounts = new Map<string, { count: number; lastReset: number }>();
+
 
 // Main Edge Function handler
 serve(async (req: Request) => {
@@ -78,13 +78,15 @@ serve(async (req: Request) => {
 
     // Rate Limiting Logic
     const now = Date.now();
-    const ipData = requestCounts.get(clientIp) || { count: 0, lastReset: now };
+    const ipData = requestCounts.get(clientIp) || { count: 0, lastReset: now, lastAccess: now };
 
     if (now - ipData.lastReset > RATE_LIMIT_WINDOW_MS) {
       ipData.count = 1;
       ipData.lastReset = now;
+      ipData.lastAccess = now;
     } else {
       ipData.count++;
+      ipData.lastAccess = now;
     }
     requestCounts.set(clientIp, ipData);
 
@@ -108,31 +110,7 @@ serve(async (req: Request) => {
       });
     }
 
-    // Check for required environment variables
-    if (!FIRECRAWL_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: "FIRECRAWL_API_KEY not set" }),
-        { status: 500, headers },
-      );
-    }
-    if (!OPENROUTER_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: "OPENROUTER_API_KEY not set" }),
-        { status: 500, headers },
-      );
-    }
-    if (!SUPABASE_URL) {
-      return new Response(JSON.stringify({ error: "SUPABASE_URL not set" }), {
-        status: 500,
-        headers,
-      });
-    }
-    if (!SUPABASE_SERVICE_ROLE_KEY) {
-      return new Response(
-        JSON.stringify({ error: "SUPABASE_SERVICE_ROLE_KEY not set" }),
-        { status: 500, headers },
-      );
-    }
+    // Environment variables are already validated at startup via ENV_CONFIG
 
     // Parse request body
     let requestBody;
@@ -282,7 +260,7 @@ serve(async (req: Request) => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+            Authorization: `Bearer ${ENV_CONFIG.OPENROUTER_API_KEY}`,
           },
           body: JSON.stringify({
             model: "perplexity/sonar",

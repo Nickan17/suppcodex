@@ -323,10 +323,7 @@ async function tryScrapfly(url: string, scrapflyKey: string): Promise<{ html: st
     const rawJson = await scrapflyRes.clone().json().catch(() => null);
     const htmlSnippet =
       rawJson?.result?.content?.slice?.(0, 500) ?? "[no result.content]";
-    console.log("[SCRAP-DEBUG]", {
-      status: scrapflyRes.status,
-      htmlFirst500: htmlSnippet.replace(/\n/g, " ")
-    });
+    // Scrapfly request completed
     
     if (scrapflyRes.ok) {
       const data = await scrapflyRes.json();
@@ -353,7 +350,7 @@ function cleanText(text: string | null) {
   return text?.replace(/\s+/g, " ").trim() ?? null;
 }
 
-function findIngredients(doc: Document): string | null {
+function findIngredients(doc: any): string | null {
   // Look into ProductInfo / product-single__description sections (Shopify)
   const selectors = [
     "#ProductInfo .rte p",
@@ -631,7 +628,7 @@ async function parseProductPage(html: string, pageUrl?: string): Promise<ParsedP
 
   const title =
     doc.querySelector("meta[property='og:title']")?.getAttribute("content") ??
-    cleanText(doc.querySelector("title")?.textContent);
+    cleanText(doc.querySelector("title")?.textContent ?? null);
 
   let ingredients: string | null = null;
   let numericDoses = false;
@@ -662,7 +659,7 @@ async function parseProductPage(html: string, pageUrl?: string): Promise<ParsedP
 const candidates: string[] = [];
 doc.querySelectorAll(
   '[id*="ingredient" i],[class*="ingredient" i], .rte p, .rte li, p, li'
-).forEach((el: Element) => {
+).forEach((el) => {
   const txt = cleanText(el.textContent);
   if (txt && txt.length > 30 && /ingredient/i.test(txt)) candidates.push(txt);
 });
@@ -676,8 +673,7 @@ for (const c of candidates) {
 }
 if (bestScore >= 2) {
   ingredients = best;
-  console.log('[ING‑DEBUG] chose candidate with score', bestScore,
-              'first120:', best.slice(0,120));
+  // Selected best ingredient candidate
 }
 
   // --- 3) Legacy fallback selectors ---
@@ -721,7 +717,7 @@ if (bestScore >= 2) {
 
   // Candidate has no numbers → forcing OCR
   if (ingredients && !/\d/.test(ingredients)) {
-    console.log('[ING-DEBUG] Candidate has no numbers, forcing OCR');
+    // No numeric doses found, trying OCR fallback
     ingredients = null;
   }
 

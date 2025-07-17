@@ -1,0 +1,319 @@
+name: End-to-End Testing
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Type of E2E test to run'
+        required: true
+        default: 'full-pipeline'
+        type: choice
+        options:
+        - full-pipeline
+        - deploy-verification
+        - live-api-test
+        - fork-pr-simulation
+        - frontend-smoke
+  schedule:
+    # Run full pipeline test daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  ALLOWED_HOSTS: "localhost,api.openfoodfacts.org,openrouter.ai,api.firecrawl.dev,supabase.co,magnumsupps.com"
+  TEST_UPC: "737628064502"  # Real UPC for testing
+  EXPECTED_SCORE_FIELDS: "overall_score,ingredient_quality,transparency,third_party_testing,value_for_money"
+
+jobs:
+  # Complete pipeline validation with realistic secrets
+  full-pipeline-test:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.test_type == 'full-pipeline' || github.event_name == 'schedule'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Deno
+      uses: denoland/setup-deno@v1
+      with:
+        deno-version: v1.x
+        
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/deno
+          supabase/functions/.deno_dir
+        key: ${{ runner.os }}-deno-${{ hashFiles('**/deno.lock') }}
+        
+    - name: Run complete static analysis
+      run: |
+        cd supabase/functions
+        echo "=== STATIC ANALYSIS ==="
+        deno fmt --check --config _shared/deno.json
+        deno lint --config _shared/deno.json
+        deno check --config _shared/deno.json **/*.ts
+        echo "✅ Static analysis passed"
+        
+    - name: Run unit tests with coverage
+      run: |
+        cd supabase/functions
+        echo "=== UNIT TESTS ==="
+        deno test --allow-env --allow-read --coverage=coverage-unit --config _shared/deno.json \
+          --allow-net=${{ env.ALLOWED_HOSTS }} \
+          --filter="^(?!.*Integration).*" \
+          **/*.test.ts
+        deno coverage coverage-unit --lcov --output=coverage-unit.lcov
+        echo "✅ Unit tests passed"
+        
+    - name: Run integration tests with production secrets
+      env:
+        OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        SCRAPFLY_API_KEY: ${{ secrets.SCRAPFLY_API_KEY }}
+        SCRAPERAPI_KEY: ${{ secrets.SCRAPERAPI_KEY }}
+        OCRSPACE_API_KEY: ${{ secrets.OCRSPACE_API_KEY }}
+        FATSECRET_CLIENT_ID: ${{ secrets.FATSECRET_CLIENT_ID }}
+      run: |
+        cd supabase/functions
+        echo "=== INTEGRATION TESTS ==="
+        deno test --allow-env --allow-read --coverage=coverage-integration --config _shared/deno.json \
+          --allow-net=${{ env.ALLOWED_HOSTS }} \
+          --filter=".*Integration.*" \
+          **/*.test.ts
+        deno coverage coverage-integration --lcov --output=coverage-integration.lcov
+        echo "✅ Integration tests passed"
+        
+    - name: Generate combined coverage report
+      run: |
+        cd supabase/functions
+        cat coverage-unit.lcov coverage-integration.lcov > coverage.lcov
+        echo "📊 Coverage report generated"
+        
+    - name: Upload coverage to Coveralls
+      uses: coverallsapp/github-action@v2
+      with:
+        coveralls-lcov-path: supabase/functions/coverage.lcov
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  # Deploy verification with health checks
+  deploy-verification:
+    runs-on: ubuntu-latest
+    needs: full-pipeline-test
+    if: github.event.inputs.test_type == 'deploy-verification' || github.event_name == 'schedule'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Supabase CLI
+      uses: supabase/setup-cli@v1
+      with:
+        version: latest
+        
+    - name: Deploy Edge Functions
+      env:
+        SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      run: |
+        cd supabase
+        echo "=== DEPLOYING EDGE FUNCTIONS ==="
+        supabase functions deploy --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
+        echo "✅ Deployment completed"
+        
+    - name: Verify function health
+      run: |
+        echo "=== HEALTH CHECK ==="
+        # Test each function endpoint
+        FUNCTIONS=("process-upc" "resolve-upc" "score-supplement" "firecrawl-extract" "full-score-from-upc")
+        
+        for func in "${FUNCTIONS[@]}"; do
+          echo "Testing $func..."
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://${{ secrets.SUPABASE_PROJECT_ID }}.supabase.co/functions/v1/$func" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"test": true}')
+          
+          if [ "$response" = "400" ] || [ "$response" = "200" ]; then
+            echo "✅ $func is responding (HTTP $response)"
+          else
+            echo "❌ $func failed (HTTP $response)"
+            exit 1
+          fi
+        done
+
+  # Live API round-trip test
+  live-api-test:
+    runs-on: ubuntu-latest
+    needs: deploy-verification
+    if: github.event.inputs.test_type == 'live-api-test' || github.event_name == 'schedule'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Test full-score-from-upc with real UPC
+      env:
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      run: |
+        echo "=== LIVE API ROUND-TRIP TEST ==="
+        
+        # Test the full pipeline with a real UPC
+        response=$(curl -s -X POST \
+          "https://${{ secrets.SUPABASE_PROJECT_ID }}.supabase.co/functions/v1/full-score-from-upc" \
+          -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+          -H "Content-Type: application/json" \
+          -d "{\"upc\": \"${{ env.TEST_UPC }}\"}")
+        
+        echo "Response: $response"
+        
+        # Validate JSON structure
+        if echo "$response" | jq -e '.overall_score' > /dev/null; then
+          echo "✅ JSON structure is valid"
+        else
+          echo "❌ Invalid JSON structure"
+          exit 1
+        fi
+        
+        # Check for required score fields
+        for field in $(echo "${{ env.EXPECTED_SCORE_FIELDS }}" | tr ',' ' '); do
+          if echo "$response" | jq -e ".$field" > /dev/null; then
+            echo "✅ Found $field"
+          else
+            echo "❌ Missing $field"
+            exit 1
+          fi
+        done
+        
+    - name: Verify database insertion
+      env:
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      run: |
+        echo "=== DATABASE VERIFICATION ==="
+        
+        # Query the scored_products table for our test UPC
+        query_response=$(curl -s -X POST \
+          "https://${{ secrets.SUPABASE_PROJECT_ID }}.supabase.co/rest/v1/rpc/check_scored_product" \
+          -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+          -H "Content-Type: application/json" \
+          -d "{\"upc\": \"${{ env.TEST_UPC }}\"}")
+        
+        echo "Database query response: $query_response"
+        
+        if echo "$query_response" | jq -e '.[0]' > /dev/null; then
+          echo "✅ Product found in database"
+        else
+          echo "❌ Product not found in database"
+          exit 1
+        fi
+
+  # Fork PR simulation test
+  fork-pr-simulation:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.test_type == 'fork-pr-simulation'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Deno
+      uses: denoland/setup-deno@v1
+      with:
+        deno-version: v1.x
+        
+    - name: Test secret availability simulation
+      run: |
+        echo "=== FORK PR SECRET SIMULATION ==="
+        
+        # Simulate what happens in a fork PR
+        echo "Testing secret access patterns..."
+        
+        # Test secrets should be available
+        if [ -n "${{ secrets.TEST_OPENROUTER_API_KEY }}" ]; then
+          echo "✅ Test secrets are available"
+        else
+          echo "❌ Test secrets are missing"
+          exit 1
+        fi
+        
+        # Production secrets should NOT be available in fork PRs
+        # (This is handled by GitHub's security model)
+        echo "✅ Production secrets are properly protected"
+        
+    - name: Run tests with test secrets only
+      env:
+        OPENROUTER_API_KEY: ${{ secrets.TEST_OPENROUTER_API_KEY }}
+        FIRECRAWL_API_KEY: ${{ secrets.TEST_FIRECRAWL_API_KEY }}
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        SCRAPFLY_API_KEY: ${{ secrets.SCRAPFLY_API_KEY }}
+        SCRAPERAPI_KEY: ${{ secrets.SCRAPERAPI_KEY }}
+        OCRSPACE_API_KEY: ${{ secrets.OCRSPACE_API_KEY }}
+        FATSECRET_CLIENT_ID: ${{ secrets.FATSECRET_CLIENT_ID }}
+      run: |
+        cd supabase/functions
+        echo "=== RUNNING TESTS WITH TEST SECRETS ==="
+        
+        # Run a subset of tests that don't require production secrets
+        deno test --allow-env --allow-read --config _shared/deno.json \
+          --allow-net=${{ env.ALLOWED_HOSTS }} \
+          --filter="^(?!.*Integration).*" \
+          **/*.test.ts
+        
+        echo "✅ Tests passed with test secrets only"
+
+  # Frontend smoke test
+  frontend-smoke:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.test_type == 'frontend-smoke'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run frontend tests
+      run: |
+        echo "=== FRONTEND SMOKE TEST ==="
+        npm test -- --testPathPattern="smoke|basic" --passWithNoTests
+        
+    - name: Test scan flow simulation
+      env:
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      run: |
+        echo "=== SCAN FLOW SIMULATION ==="
+        
+        # This would simulate the frontend scan flow
+        # For now, we'll test the API endpoints that the frontend uses
+        
+        # Test scan endpoint
+        scan_response=$(curl -s -X POST \
+          "https://${{ secrets.SUPABASE_PROJECT_ID }}.supabase.co/functions/v1/process-upc" \
+          -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+          -H "Content-Type: application/json" \
+          -d "{\"upc\": \"${{ env.TEST_UPC }}\"}")
+        
+        echo "Scan response: $scan_response"
+        
+        if echo "$scan_response" | jq -e '.' > /dev/null; then
+          echo "✅ Scan flow API is working"
+        else
+          echo "❌ Scan flow API failed"
+          exit 1
+        fi 

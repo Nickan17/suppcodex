@@ -65,7 +65,7 @@ async function fetchFromFatSecret(upc: string): Promise<SupplementData | null> {
     const name = food.querySelector("food_name")?.textContent ?? "";
     const brand = food.querySelector("brand_name")?.textContent ?? "";
     const ing = food.querySelector("ingredients")?.textContent ?? "";
-    const ingredients = ing.split(/,|;/).map((s) => s.trim()).filter(Boolean).map((n) => ({ name: n }));
+    const ingredients = ing.split(/,|;/).map((s: string) => s.trim()).filter(Boolean).map((n: string) => ({ name: n }));
     return {
       product_id: upc,
       brand,

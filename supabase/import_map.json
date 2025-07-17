@@ -1,0 +1,9 @@
+{
+  "imports": {
+    "std/": "https://deno.land/std@0.224.0/",
+    "supabase": "https://esm.sh/@supabase/supabase-js@2",
+    "dom": "https://deno.land/x/deno_dom/deno-dom-wasm.ts",
+    "base64": "https://deno.land/std@0.224.0/encoding/base64.ts",
+    "cors": "https://deno.land/x/cors@v1.2.2/mod.ts"
+  }
+} 

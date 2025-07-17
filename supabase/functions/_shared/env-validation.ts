@@ -39,7 +39,7 @@ export function validateEnvironment(): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
   
-  // Required variables that must be present
+  // Required variables that must be present for core functionality
   const requiredVars = [
     'SUPABASE_URL',
     'SUPABASE_ANON_KEY', 
