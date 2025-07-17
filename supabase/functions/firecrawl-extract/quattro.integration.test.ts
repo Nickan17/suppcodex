@@ -4,6 +4,12 @@ import {
   assertStringIncludes,
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
 
+console.log("Quattro integration test file loaded");
+
+Deno.test("smoke test", () => {
+  console.log("Smoke test ran");
+});
+
 // Test interfaces
 interface ParsedProduct {
   _meta?: {
