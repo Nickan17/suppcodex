@@ -1,4 +1,10 @@
-// Parser utilities for product extraction
+/** Shape returned by parseProductPage() */
+export interface ParsedProduct {
+  title: string | undefined;
+  ingredients_raw?: string;
+  numeric_doses_present?: boolean;
+}
+
 import { DOMParser } from "https://deno.land/x/deno_dom/deno-dom-wasm.ts";
 
 /** Try multiple selectors and return the first non‑empty product title */
@@ -18,7 +24,10 @@ export function extractTitle(html: string): string | undefined {
 }
 
 /** Main parser (stripped to title for brevity) */
-export async function parseProductPage(html: string, url: string) {
+export async function parseProductPage(
+  html: string,
+  url: string,
+): Promise<ParsedProduct> {
   const title = extractTitle(html);
   return { title };
 } 
