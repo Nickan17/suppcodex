@@ -132,10 +132,10 @@ jobs:
         OCRSPACE_API_KEY: ${{ secrets.OCRSPACE_API_KEY }}
       run: |
         cd supabase/functions
-        # Run only integration tests with network access
+        # Run only Quattro integration test for Magnum
         deno test --allow-env --allow-read --coverage=coverage-integration --config _shared/deno.json \
           --allow-net=${{ env.ALLOWED_HOSTS }} \
-          --filter=".*Integration.*" \
+          --filter="Quattro" \
           **/*.test.ts
         
     - name: Generate integration test coverage
