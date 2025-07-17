@@ -135,7 +135,6 @@ jobs:
         # Run only Quattro integration test for Magnum
         deno test --allow-env --allow-read --coverage=coverage-integration --config _shared/deno.json \
           --allow-net=${{ env.ALLOWED_HOSTS }} \
-          --filter="Quattro" \
           **/*.test.ts
         
     - name: Generate integration test coverage
