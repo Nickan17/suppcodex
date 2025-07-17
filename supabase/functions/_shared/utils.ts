@@ -1,16 +1,17 @@
 /**
  * Shared Utility Functions
- * 
+ *
  * Common utilities used across Edge Functions with proper error handling,
  * memory management, and type safety.
  */
 
 // Inline constants to avoid import issues
 const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-  'Access-Control-Max-Age': '86400',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+  "Access-Control-Max-Age": "86400",
 } as const;
 
 const HTTP_STATUS = {
@@ -52,7 +53,7 @@ export interface ErrorResponseMeta {
 export function createErrorResponse(
   message: string,
   status: number = HTTP_STATUS.INTERNAL_SERVER_ERROR,
-  meta: ErrorResponseMeta = {}
+  meta: ErrorResponseMeta = {},
 ): Response {
   return new Response(
     JSON.stringify({
@@ -66,7 +67,7 @@ export function createErrorResponse(
     {
       status,
       headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-    }
+    },
   );
 }
 
@@ -76,11 +77,12 @@ export function createErrorResponse(
 export function createSuccessResponse(
   data: Record<string, unknown> | unknown[],
   status: number = HTTP_STATUS.OK,
-  meta: Record<string, unknown> = {}
+  meta: Record<string, unknown> = {},
 ): Response {
-  const responseData = typeof data === 'object' && data !== null && !Array.isArray(data)
-    ? { ...data as Record<string, unknown> }
-    : { data };
+  const responseData =
+    typeof data === "object" && data !== null && !Array.isArray(data)
+      ? { ...data as Record<string, unknown> }
+      : { data };
 
   return new Response(
     JSON.stringify({
@@ -93,7 +95,7 @@ export function createSuccessResponse(
     {
       status,
       headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-    }
+    },
   );
 }
 
@@ -207,7 +209,7 @@ export function validateUPC(upc: unknown): upc is string {
   if (typeof upc !== "string" || !upc.trim()) {
     return false;
   }
-  
+
   const cleaned = upc.replace(PATTERNS.UPC_CLEAN, "");
   return cleaned.length >= 8 && cleaned.length <= 14;
 }
@@ -219,7 +221,7 @@ export function validateURL(url: unknown): url is string {
   if (typeof url !== "string" || !url.trim()) {
     return false;
   }
-  
+
   try {
     new URL(url);
     return url.startsWith("http://") || url.startsWith("https://");
@@ -246,7 +248,7 @@ export function generateUPCVariants(upc: string): string[] {
 export async function fetchWithTimeout(
   resource: string,
   options: RequestInit = {},
-  timeout: number = 25000
+  timeout: number = 25000,
 ): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
@@ -267,7 +269,9 @@ export async function fetchWithTimeout(
 /**
  * Type guard for objects with message property
  */
-export function isErrorWithMessage(error: unknown): error is { message: string } {
+export function isErrorWithMessage(
+  error: unknown,
+): error is { message: string } {
   return (
     typeof error === "object" &&
     error !== null &&
@@ -294,7 +298,7 @@ export function getErrorMessage(error: unknown): string {
 export function logWithContext(
   level: "info" | "warn" | "error",
   message: string,
-  context: Record<string, unknown> = {}
+  context: Record<string, unknown> = {},
 ): void {
   const logEntry = {
     timestamp: new Date().toISOString(),
@@ -303,9 +307,11 @@ export function logWithContext(
     ...context,
   };
 
-  const logFunction = level === "error" ? console.error : 
-                     level === "warn" ? console.warn : 
-                     console.log;
+  const logFunction = level === "error"
+    ? console.error
+    : level === "warn"
+    ? console.warn
+    : console.log;
 
   logFunction(JSON.stringify(logEntry));
-} 
+}

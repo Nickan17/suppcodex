@@ -1,4 +1,8 @@
-import { assertEquals, assertExists, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import {
+  assertEquals,
+  assertExists,
+  assertStringIncludes,
+} from "https://deno.land/std@0.224.0/assert/mod.ts";
 
 // Test interfaces
 interface ParsedProduct {
@@ -21,26 +25,30 @@ function cleanText(text: string | null): string | null {
 function looksLikeIngredientList(text: string | null): boolean {
   if (!text) return false;
   const normalized = text.toLowerCase();
-  const hasIngredientKeywords = /ingredients?:|medicinal ingredients?|non[- ]?medicinal|supplement facts/i.test(normalized);
+  const hasIngredientKeywords =
+    /ingredients?:|medicinal ingredients?|non[- ]?medicinal|supplement facts/i
+      .test(normalized);
   const hasListMarkers = /[\w\s]+,|•|\*|\d+\./g.test(normalized);
   const hasDosageUnits = /\b(mg|mcg|g|iu|%dv)\b/i.test(normalized);
-  const hasCertifications = /(organic|natural|non-gmo|kosher|halal|usda|fda)\b/i.test(normalized);
-  
-  return hasIngredientKeywords && (hasListMarkers || hasDosageUnits || hasCertifications);
+  const hasCertifications = /(organic|natural|non-gmo|kosher|halal|usda|fda)\b/i
+    .test(normalized);
+
+  return hasIngredientKeywords &&
+    (hasListMarkers || hasDosageUnits || hasCertifications);
 }
 
 function scoreCandidate(text: string): number {
   const t = text.toLowerCase();
   let score = 0;
-  
+
   if (!/ingredients?:/i.test(t)) return 0;
   if (t.length < 30) return 0;
-  if (/\b(mg|mcg|g|iu|%dv)\b/i.test(t))                         score += 1; // dosage units
-  if (/\([^()]*allergen/i.test(t))                              score += 1; // allergen warnings
-  if (/(organic|natural|artificial|color|flavor)/i.test(t))     score += 1; // label keywords
-  if (/\d+\.\d+/.test(t))                                       score += 1; // decimal numbers
+  if (/\b(mg|mcg|g|iu|%dv)\b/i.test(t)) score += 1; // dosage units
+  if (/\([^()]*allergen/i.test(t)) score += 1; // allergen warnings
+  if (/(organic|natural|artificial|color|flavor)/i.test(t)) score += 1; // label keywords
+  if (/\d+\.\d+/.test(t)) score += 1; // decimal numbers
   if (/(legacy|award|smooth|experience|delicious|premium)/i.test(t)) score -= 2;
-  
+
   return Math.max(0, score);
 }
 
@@ -103,13 +111,15 @@ Deno.test("firecrawl-extract - Ingredient Detection", async (t) => {
 
 Deno.test("firecrawl-extract - Candidate Scoring", async (t) => {
   await t.step("should score high-quality candidates correctly", () => {
-    const highQuality = "Ingredients: Vitamin C 500 mg, Zinc 15 mg, Magnesium 200 mg";
+    const highQuality =
+      "Ingredients: Vitamin C 500 mg, Zinc 15 mg, Magnesium 200 mg";
     const score = scoreCandidate(highQuality);
     assertEquals(score >= 1, true); // Should score at least 1 for having ingredients and dosage
   });
 
   await t.step("should score low-quality candidates correctly", () => {
-    const lowQuality = "Legacy blend with premium ingredients for smooth experience";
+    const lowQuality =
+      "Legacy blend with premium ingredients for smooth experience";
     const score = scoreCandidate(lowQuality);
     assertEquals(score <= 0, true); // Should score low or negative
   });
@@ -246,11 +256,11 @@ Deno.test("firecrawl-extract - Content Extraction", async (t) => {
         <body>Content</body>
       </html>
     `;
-    
+
     // Simulate extraction logic
     const hasOgTitle = mockHTML.includes('property="og:title"');
-    const hasTitle = mockHTML.includes('<title>');
-    
+    const hasTitle = mockHTML.includes("<title>");
+
     assertEquals(hasOgTitle, true);
     assertEquals(hasTitle, true);
   });
@@ -259,13 +269,13 @@ Deno.test("firecrawl-extract - Content Extraction", async (t) => {
     const mockStructuredData = {
       description: "Ingredients: Vitamin C 500mg, Zinc 15mg",
       nutrition: {
-        ingredients: "Vitamin D3 1000 IU, Calcium 500mg"
-      }
+        ingredients: "Vitamin D3 1000 IU, Calcium 500mg",
+      },
     };
 
     const hasDescription = !!mockStructuredData.description;
     const hasNutrition = !!mockStructuredData.nutrition?.ingredients;
-    
+
     assertEquals(hasDescription, true);
     assertEquals(hasNutrition, true);
   });
@@ -274,16 +284,17 @@ Deno.test("firecrawl-extract - Content Extraction", async (t) => {
 Deno.test("firecrawl-extract - CORS Handling", async (t) => {
   await t.step("should include CORS headers", () => {
     const corsHeaders = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Max-Age': '86400',
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers":
+        "authorization, x-client-info, apikey, content-type",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Max-Age": "86400",
     };
 
-    assertExists(corsHeaders['Access-Control-Allow-Origin']);
-    assertEquals(corsHeaders['Access-Control-Allow-Origin'], '*');
-    assertExists(corsHeaders['Access-Control-Allow-Methods']);
-    assertStringIncludes(corsHeaders['Access-Control-Allow-Methods'], 'POST');
+    assertExists(corsHeaders["Access-Control-Allow-Origin"]);
+    assertEquals(corsHeaders["Access-Control-Allow-Origin"], "*");
+    assertExists(corsHeaders["Access-Control-Allow-Methods"]);
+    assertStringIncludes(corsHeaders["Access-Control-Allow-Methods"], "POST");
   });
 
   await t.step("should handle OPTIONS requests", () => {
@@ -295,7 +306,7 @@ Deno.test("firecrawl-extract - CORS Handling", async (t) => {
 Deno.test("firecrawl-extract - Integration Test", async (t) => {
   await t.step("should process valid URL end-to-end", async () => {
     const testURL = "https://example.com/product";
-    
+
     // Validate URL
     try {
       new URL(testURL);
@@ -303,7 +314,7 @@ Deno.test("firecrawl-extract - Integration Test", async (t) => {
     } catch {
       throw new Error("Valid URL should not throw");
     }
-    
+
     // Simulate successful extraction
     const mockResult: ParsedProduct = {
       title: "Test Product",
@@ -324,9 +335,11 @@ Deno.test("firecrawl-extract - Integration Test", async (t) => {
 // Test utilities
 Deno.test("firecrawl-extract - Utility Functions", async (t) => {
   await t.step("should handle ingredient text parsing", () => {
-    const ingredientText = "Ingredients: Vitamin C 500mg, Zinc 15mg, Magnesium 200mg";
-    const ingredients = ingredientText.split(/,|;/).map((s: string) => s.trim()).filter(Boolean);
-    
+    const ingredientText =
+      "Ingredients: Vitamin C 500mg, Zinc 15mg, Magnesium 200mg";
+    const ingredients = ingredientText.split(/,|;/).map((s: string) => s.trim())
+      .filter(Boolean);
+
     assertEquals(ingredients.length, 3);
     assertStringIncludes(ingredients[0], "Vitamin C 500mg");
     assertStringIncludes(ingredients[1], "Zinc 15mg");
@@ -336,19 +349,21 @@ Deno.test("firecrawl-extract - Utility Functions", async (t) => {
   await t.step("should detect numeric doses", () => {
     const withDoses = "Vitamin C 500mg, Zinc 15mg, Magnesium 200mg";
     const withoutDoses = "Vitamin C, Zinc, Magnesium";
-    
+
     const hasDoses = /\d+(\.\d+)?\s?(g|mg|mcg|µg|iu|%)\b/i.test(withDoses);
     const noDoses = /\d+(\.\d+)?\s?(g|mg|mcg|µg|iu|%)\b/i.test(withoutDoses);
-    
+
     assertEquals(hasDoses, true);
     assertEquals(noDoses, false);
   });
 
   await t.step("should extract manufacturer information", () => {
     const text = "Manufactured for and distributed by Test Company Inc.";
-    const manufacturerMatch = text.match(/manufactured for and distributed by\s*([\s\S]*)/i);
-    const manufacturer = manufacturerMatch ? manufacturerMatch[1].trim() : '';
-    
+    const manufacturerMatch = text.match(
+      /manufactured for and distributed by\s*([\s\S]*)/i,
+    );
+    const manufacturer = manufacturerMatch ? manufacturerMatch[1].trim() : "";
+
     assertEquals(manufacturer, "Test Company Inc.");
   });
-}); 
+});

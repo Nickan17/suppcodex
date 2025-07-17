@@ -1,6 +1,6 @@
 /**
  * Centralized Configuration Constants
- * 
+ *
  * All magic numbers, timeouts, and configuration values extracted from the codebase
  * for better maintainability and easier testing.
  */
@@ -57,11 +57,11 @@ export const SCORING_WEIGHTS = {
 
 // OCR Configuration
 export const OCR_CONFIG = {
-  LANGUAGE: 'eng',
-  IS_OVERLAY_REQUIRED: 'false',
-  IS_TABLE: 'true',
-  SCALE: 'true',
-  OCR_ENGINE: '2', // 1 = Legacy, 2 = New
+  LANGUAGE: "eng",
+  IS_OVERLAY_REQUIRED: "false",
+  IS_TABLE: "true",
+  SCALE: "true",
+  OCR_ENGINE: "2", // 1 = Legacy, 2 = New
   MIN_SCORE_THRESHOLD: 2,
 } as const;
 
@@ -69,7 +69,7 @@ export const OCR_CONFIG = {
 export const FIRECRAWL_CONFIG = {
   EXTRACT_TIMEOUT: 10000,
   CRAWL_TIMEOUT: 20000,
-  DEFAULT_PROXY_MODE: 'auto',
+  DEFAULT_PROXY_MODE: "auto",
   EXTRACTOR_OPTIONS: { mode: "markdown" },
 } as const;
 
@@ -77,8 +77,10 @@ export const FIRECRAWL_CONFIG = {
 export const PATTERNS = {
   INGREDIENT_LIST: /ingredients?\s*:\s*([^<]{30,400})/i,
   NUMERIC_DOSES: /\d+(\.\d+)?\s?(g|mg|mcg|µg|iu|%)\b/i,
-  SUPPLEMENT_FACTS: /supplement\s*facts|amino\s*acid\s*profile|nutrition\s*facts/i,
-  MEDICINAL_INGREDIENTS: /medicinal\s*ingredients?|non[- ]?medicinal|ingredients?/i,
+  SUPPLEMENT_FACTS:
+    /supplement\s*facts|amino\s*acid\s*profile|nutrition\s*facts/i,
+  MEDICINAL_INGREDIENTS:
+    /medicinal\s*ingredients?|non[- ]?medicinal|ingredients?/i,
   UPC_CLEAN: /\D/g,
   SUPABASE_URL_FORMAT: /^https:\/\/[a-z0-9]+\.supabase\.co$/,
   OPENROUTER_KEY_PREFIX: /^sk-or-/,
@@ -102,21 +104,24 @@ export const HTTP_STATUS = {
 
 // CORS Configuration
 export const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-  'Access-Control-Max-Age': '86400',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+  "Access-Control-Max-Age": "86400",
 } as const;
 
 // Default Error Messages
 export const ERROR_MESSAGES = {
-  METHOD_NOT_ALLOWED: 'Method Not Allowed',
-  INVALID_JSON: 'Invalid JSON in request body',
-  MISSING_URL: 'URL is required',
-  MISSING_UPC: 'UPC is required',
-  ENVIRONMENT_VALIDATION_FAILED: 'Environment validation failed - see logs for details',
-  INTERNAL_SERVER_ERROR: 'Internal Server Error',
-  RATE_LIMIT_EXCEEDED: 'Rate limit exceeded. Try again shortly.',
-  UPC_NOT_FOUND: 'UPC not found',
-  NO_CONTENT_EXTRACTED: 'No content extracted from target URL after trying all methods',
-} as const; 
+  METHOD_NOT_ALLOWED: "Method Not Allowed",
+  INVALID_JSON: "Invalid JSON in request body",
+  MISSING_URL: "URL is required",
+  MISSING_UPC: "UPC is required",
+  ENVIRONMENT_VALIDATION_FAILED:
+    "Environment validation failed - see logs for details",
+  INTERNAL_SERVER_ERROR: "Internal Server Error",
+  RATE_LIMIT_EXCEEDED: "Rate limit exceeded. Try again shortly.",
+  UPC_NOT_FOUND: "UPC not found",
+  NO_CONTENT_EXTRACTED:
+    "No content extracted from target URL after trying all methods",
+} as const;
