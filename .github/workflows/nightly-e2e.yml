@@ -18,4 +18,5 @@ jobs:
       - uses: denoland/setup-deno@v1
         with:
           deno-version: '2.x'
+      - run: deno --version
       - run: deno test -A --no-check supabase/functions/firecrawl-extract/quattro.integration.test.ts 
