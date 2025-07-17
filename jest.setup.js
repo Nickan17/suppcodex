@@ -1,3 +1,4 @@
+process.env.SUPABASE_JWT_SECRET ??= "test-secret";
 // Better assertions for React Native
 import '@testing-library/jest-native/extend-expect';
 
