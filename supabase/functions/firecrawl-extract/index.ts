@@ -773,10 +773,7 @@ interface ParsedProduct {
   manufacturer?: string;
   [key: string]: unknown;
 }
-async function parseProductPage(
-  html: string,
-  pageUrl?: string,
-): Promise<ParsedProduct> {
+export async function parseProductPage(html: string, pageUrl?: string): Promise<ParsedProduct> {
   const MAX_HTML_LEN = 400_000;
   if (html.length > MAX_HTML_LEN) html = html.slice(0, MAX_HTML_LEN);
   const doc = new DOMParser().parseFromString(html, "text/html");
