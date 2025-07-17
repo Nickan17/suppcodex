@@ -122,6 +122,8 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-deno-
           
+    - name: List test files
+      run: ls -l supabase/functions/firecrawl-extract/
     - name: Run integration tests
       env:
         SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -131,11 +133,10 @@ jobs:
         FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
         OCRSPACE_API_KEY: ${{ secrets.OCRSPACE_API_KEY }}
       run: |
-        cd supabase/functions
-        # Run only Quattro integration test for Magnum
-        deno test --allow-env --allow-read --coverage=coverage-integration --config _shared/deno.json \
+        cd supabase/functions/firecrawl-extract
+        deno test --allow-env --allow-read --config ../_shared/deno.json \
           --allow-net=${{ env.ALLOWED_HOSTS }} \
-          **/*.test.ts
+          quattro.integration.test.ts
         
     - name: Generate integration test coverage
       run: |
