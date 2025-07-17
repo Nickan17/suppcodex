@@ -8,7 +8,7 @@ on:
 
 env:
   # Network allowlist for strict permissions
-  ALLOWED_HOSTS: "localhost,api.openfoodfacts.org,openrouter.ai,api.firecrawl.dev,supabase.co,magnumsupps.com"
+  ALLOWED_HOSTS: "localhost,api.openfoodfacts.org,openrouter.ai,api.firecrawl.dev,supabase.co,magnumsupps.com,uaqcehoocecvihubnbhp.supabase.co"
 
 jobs:
   # Static analysis and type checking
