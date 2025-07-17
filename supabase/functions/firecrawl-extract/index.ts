@@ -1194,6 +1194,14 @@ const handler = async (req: Request) => {
         console.warn("[ScraperAPI] SCRAPERAPI_KEY not set in environment.");
       }
     }
+    // --- Scrapfly+OCR fallback: if Firecrawl fails, parse Scrapfly HTML ---
+    let parsed: ParsedProduct | null = null;
+    if (!extractedData && extractedHtml) {
+      parsed = await parseProductPage(extractedHtml, url);
+      if (parsed && parsed.title) {
+        meta.source = meta.source === 'scrapfly' ? 'scrapfly' : meta.source;
+      }
+    }
     // --- Final Response ---
     meta.timing.totalMs = Date.now() - startTime;
 
@@ -1211,19 +1219,18 @@ const handler = async (req: Request) => {
         }] Structured data extracted via ${meta.source}`,
       );
       return createResponse({ data: extractedData, _meta: meta });
-    } else if (extractedHtml) {
-      // Parse basic fields from HTML
-      const parsed = await parseProductPage(extractedHtml, url);
+    } else if (parsed && parsed.title) {
+      // Parsed Scrapfly fallback
       console.log(
         `[${
           new Date().toISOString()
-        }] Raw content extracted via ${meta.source}`,
+        }] Scrapfly+OCR fallback extracted via ${meta.source}`,
       );
-      return createResponse({
-        html: extractedHtml,
-        parsed, // now carries ingredients_raw + numeric_doses_present
-        _meta: meta,
-      });
+      return createResponse({ parsed, _meta: meta });
+    } else if (extractedHtml) {
+      // Parse basic fields from HTML (legacy)
+      const legacyParsed = await parseProductPage(extractedHtml, url);
+      return createResponse({ html: extractedHtml, parsed: legacyParsed, _meta: meta });
     } else {
       // All methods failed
       console.error(
