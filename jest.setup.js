@@ -11,29 +11,32 @@ import 'whatwg-fetch';
 // Random values polyfill used by expo-crypto etc.
 import 'react-native-get-random-values';
 
-// Mock expo-router navigation so tests don’t crash
-jest.mock('expo-router', () => {
-  const originalModule = jest.requireActual('expo-router');
-  return {
-    ...originalModule,
-    useRouter: () => ({
-      push: jest.fn(),
-      back: jest.fn(),
-      replace: jest.fn(),
-    }),
-    useLocalSearchParams: () => ({}),
-    router: {
-      push: jest.fn(),
-      back: jest.fn(),
-      replace: jest.fn(),
-    },
-  };
-});
-
 // Silence & speed up react-native-reanimated
 jest.mock('react-native-reanimated', () =>
   require('react-native-reanimated/mock'),
 );
+
+// Mock AsyncStorage for React Native
+import mockAsyncStorage from "./__mocks__/asyncStorageMock.js";
+jest.mock("@react-native-async-storage/async-storage", () => mockAsyncStorage);
+
+// Mock Expo Constants
+jest.mock('expo-constants', () => ({
+  manifest: {},
+  expoConfig: {},
+  appOwnership: 'expo',
+  platform: { ios: {}, android: {}, web: {} },
+  deviceName: 'jest-device',
+  deviceYearClass: 2023,
+  executionEnvironment: 'standalone',
+  isDevice: false,
+  sessionId: 'test-session',
+  systemFonts: [],
+  systemVersion: '1.0.0',
+}));
+
+// Mock Supabase
+jest.mock("@/lib/supabase", () => require("./__mocks__/lib/supabase.js"));
 
 // Default no-op fetch so tests don’t hit the network; individual tests can override
 if (!global.fetch) {

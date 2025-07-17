@@ -1,12 +1,17 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import PasteScreen from '../app/paste';
+import { router } from 'expo-router';
 
-// Bind a single push mock for all calls
-const mockPush = jest.fn();
-
-jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: mockPush, back: jest.fn() }),
+// Mock Supabase functions
+jest.mock('../lib/supabase', () => ({
+  supabase: {
+    functions: {
+      invoke: jest.fn()
+        .mockResolvedValueOnce({ data: { markdown: '## Test Product' }, error: null })
+        .mockResolvedValueOnce({ data: { id: '123' }, error: null }),
+    },
+  },
 }));
 
 // Mock fetch to Firecrawl & scoring edge functions
@@ -15,9 +20,8 @@ jest.mock('expo-router', () => ({
 );
 
 describe('Paste URL flow', () => {
-  afterEach(() => {
-    mockPush.mockClear();
-    (global.fetch as jest.Mock).mockClear();
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
   it('submits URL and navigates to product page', async () => {
@@ -29,6 +33,6 @@ describe('Paste URL flow', () => {
     );
     fireEvent.press(getByText(/submit/i));
 
-    await waitFor(() => expect(mockPush).toHaveBeenCalled());
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith('/product/123'));
   });
 });
