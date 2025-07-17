@@ -21,7 +21,7 @@ interface ParsedProduct {
 
 // Test the Quattro product page extraction
 Deno.test("firecrawl-extract - Quattro Integration Test", async (t) => {
-  await t.step("should extract Quattro product data successfully", async () => {
+  await t.step("should extract Quattro product data successfully [Integration]", async () => {
     const testURL =
       "https://magnumsupps.com/en-us/products/quattro?variant=46056179892527";
 
@@ -113,7 +113,7 @@ Deno.test("firecrawl-extract - Quattro Integration Test", async (t) => {
     console.log(`   Numeric doses present: ${result.numeric_doses_present}`);
   });
 
-  await t.step("should handle extraction failures gracefully", async () => {
+  await t.step("should handle extraction failures gracefully [Integration]", async () => {
     const invalidURL =
       "https://magnumsupps.com/en-us/products/nonexistent-product";
 
@@ -158,7 +158,7 @@ Deno.test("firecrawl-extract - Quattro Integration Test", async (t) => {
   });
 
   await t.step(
-    "should provide debug information on extraction failure",
+    "should provide debug information on extraction failure [Integration]",
     async () => {
       const testURL =
         "https://magnumsupps.com/en-us/products/quattro?variant=46056179892527";
