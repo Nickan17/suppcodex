@@ -4,6 +4,8 @@ import {
   assertStringIncludes,
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
 
+const RUN_LIVE = Deno.env.get("RUN_LIVE_E2E") === "true";
+
 console.log("Quattro integration test file loaded");
 
 Deno.test("smoke test", () => {
@@ -27,97 +29,99 @@ interface ParsedProduct {
 
 // Test the Quattro product page extraction
 Deno.test("firecrawl-extract - Quattro [Integration] Test", async (t) => {
-  await t.step("should extract Quattro product data successfully [Integration]", async () => {
-    const testURL =
-      "https://magnumsupps.com/en-us/products/quattro?variant=46056179892527";
+  if (RUN_LIVE) {
+    await t.step("[Live] firecrawl‑extract → Magnum Quattro", async () => {
+      const testURL =
+        "https://magnumsupps.com/en-us/products/quattro?variant=46056179892527";
 
-    // Get Supabase configuration from environment
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    if (!supabaseUrl) {
-      throw new Error("SUPABASE_URL environment variable is required");
-    }
+      // Get Supabase configuration from environment
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      if (!supabaseUrl) {
+        throw new Error("SUPABASE_URL environment variable is required");
+      }
 
-    const edgeKey = Deno.env.get("SUPABASE_EDGE_FUNCTION_KEY");
+      const edgeKey = Deno.env.get("SUPABASE_EDGE_FUNCTION_KEY");
 
-    // Get API keys from environment (test secrets for PRs, production for main)
-    const firecrawlApiKey = Deno.env.get("FIRECRAWL_API_KEY");
-    const scraperApiKey = Deno.env.get("SCRAPERAPI_KEY");
-    const scrapflyApiKey = Deno.env.get("SCRAPFLY_API_KEY");
+      // Get API keys from environment (test secrets for PRs, production for main)
+      const firecrawlApiKey = Deno.env.get("FIRECRAWL_API_KEY");
+      const scraperApiKey = Deno.env.get("SCRAPERAPI_KEY");
+      const scrapflyApiKey = Deno.env.get("SCRAPFLY_API_KEY");
 
-    if (!firecrawlApiKey && !scraperApiKey && !scrapflyApiKey) {
-      throw new Error("No API keys available for testing");
-    }
+      if (!firecrawlApiKey && !scraperApiKey && !scrapflyApiKey) {
+        throw new Error("No API keys available for testing");
+      }
 
-    // Make request to live Supabase firecrawl-extract function
-    const response = await fetch(
-      `${supabaseUrl}/functions/v1/firecrawl-extract`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(edgeKey ? { apikey: edgeKey } : {}),
+      // Make request to live Supabase firecrawl-extract function
+      const response = await fetch(
+        `${supabaseUrl}/functions/v1/firecrawl-extract`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(edgeKey ? { apikey: edgeKey } : {}),
+          },
+          body: JSON.stringify({ url: testURL }),
         },
-        body: JSON.stringify({ url: testURL }),
-      },
-    );
+      );
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`HTTP ${response.status}: ${errorText}`);
-      throw new Error(`Request failed with status ${response.status}`);
-    }
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`HTTP ${response.status}: ${errorText}`);
+        throw new Error(`Request failed with status ${response.status}`);
+      }
 
-    const result: ParsedProduct = await response.json();
+      const result: ParsedProduct = await response.json();
 
-    // Validate _meta.source field
-    assertExists(result._meta, "_meta field should exist");
-    assertExists(result._meta.source, "_meta.source field should exist");
-    const validSources = ["firecrawl", "scrapfly", "scraperapi"];
-    assertEquals(
-      validSources.includes(result._meta.source),
-      true,
-      `_meta.source should be one of: ${validSources.join(", ")}`,
-    );
+      // Validate _meta.source field
+      assertExists(result._meta, "_meta field should exist");
+      assertExists(result._meta.source, "_meta.source field should exist");
+      const validSources = ["firecrawl", "scrapfly", "scraperapi"];
+      assertEquals(
+        validSources.includes(result._meta.source),
+        true,
+        `_meta.source should be one of: ${validSources.join(", ")}`,
+      );
 
-    // Validate title contains "Quattro"
-    assertExists(result.title, "title field should exist");
-    assertStringIncludes(
-      result.title.toLowerCase(),
-      "quattro",
-      "title should contain 'Quattro'",
-    );
+      // Validate title contains "Quattro"
+      assertExists(result.title, "title field should exist");
+      assertStringIncludes(
+        result.title.toLowerCase(),
+        "quattro",
+        "title should contain 'Quattro'",
+      );
 
-    // Validate ingredients_raw is non-empty and contains expected content
-    assertExists(result.ingredients_raw, "ingredients_raw field should exist");
-    assertEquals(
-      result.ingredients_raw.length > 0,
-      true,
-      "ingredients_raw should not be empty",
-    );
-    assertStringIncludes(
-      result.ingredients_raw.toLowerCase(),
-      "isolated protein",
-      "ingredients_raw should contain 'isolated protein'",
-    );
+      // Validate ingredients_raw is non-empty and contains expected content
+      assertExists(result.ingredients_raw, "ingredients_raw field should exist");
+      assertEquals(
+        result.ingredients_raw.length > 0,
+        true,
+        "ingredients_raw should not be empty",
+      );
+      assertStringIncludes(
+        result.ingredients_raw.toLowerCase(),
+        "isolated protein",
+        "ingredients_raw should contain 'isolated protein'",
+      );
 
-    // Validate numeric_doses_present is true
-    assertEquals(
-      result.numeric_doses_present,
-      true,
-      "numeric_doses_present should be true",
-    );
+      // Validate numeric_doses_present is true
+      assertEquals(
+        result.numeric_doses_present,
+        true,
+        "numeric_doses_present should be true",
+      );
 
-    // Log success details
-    console.log(`✅ Successfully extracted Quattro product data`);
-    console.log(`   Source: ${result._meta.source}`);
-    console.log(`   Title: ${result.title}`);
-    console.log(
-      `   Ingredients length: ${
-        result.ingredients_raw?.length || 0
-      } characters`,
-    );
-    console.log(`   Numeric doses present: ${result.numeric_doses_present}`);
-  });
+      // Log success details
+      console.log(`✅ Successfully extracted Quattro product data`);
+      console.log(`   Source: ${result._meta.source}`);
+      console.log(`   Title: ${result.title}`);
+      console.log(
+        `   Ingredients length: ${
+          result.ingredients_raw?.length || 0
+        } characters`,
+      );
+      console.log(`   Numeric doses present: ${result.numeric_doses_present}`);
+    });
+  }
 
   await t.step("should handle extraction failures gracefully [Integration]", async () => {
     const invalidURL =

@@ -1,0 +1,20 @@
+name: Nightly Live E2E
+
+on:
+  schedule:
+    - cron: "0 4 * * *"   # 04:00 UTC daily
+  workflow_dispatch:
+
+jobs:
+  live-magnum-test:
+    runs-on: ubuntu-latest
+    env:
+      RUN_LIVE_E2E: "true"
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      SCRAPFLY_API_KEY: ${{ secrets.SCRAPFLY_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v1
+        with: { deno-version: v1.x }
+      - run: deno test -A --no-check supabase/functions/firecrawl-extract/quattro.integration.test.ts 
