@@ -23,11 +23,14 @@ export async function parseProductPage(html: string, pageUrl?: string): Promise<
     numeric_doses_present: false,
   };
 
-  // Title extraction
+  // Title extraction with multi-selector fallback
   let title = null;
   const ogTitle = doc.querySelector('meta[property="og:title"]')?.getAttribute("content");
   const titleTag = doc.querySelector("title")?.textContent;
-  title = ogTitle || titleTag || null;
+  const h1Tag = doc.querySelector("h1")?.textContent;
+  const metaDesc = doc.querySelector('meta[name="description"]')?.getAttribute("content");
+  const h2Tag = doc.querySelector("h2")?.textContent;
+  title = ogTitle || titleTag || h1Tag || metaDesc || h2Tag || null;
 
   // Ingredients extraction
   let ingredients = null;
