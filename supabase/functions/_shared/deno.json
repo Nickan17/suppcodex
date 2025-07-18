@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "lib": ["dom", "es2015", "es2017", "deno.window", "deno.unstable"],
+    "allowImportingTsExtensions": true
+  },
+  "fmt": {
+    "exclude": ["coverage", "**/coverage/**"]
+  }
+}
