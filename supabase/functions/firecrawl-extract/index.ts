@@ -143,13 +143,18 @@ async function lightOCR(
 
   // Rank images by likelihood of containing supplement panel
   const ranked = imgs
-    .map((el) => {
+    .map((el, index) => {
       const src = (el.getAttribute("src") || "").toLowerCase();
       const alt = (el.getAttribute("alt") || "").toLowerCase();
       let score = 0;
       if (/supplement|nutrition|facts|ingredients|panel|label|back/.test(src)) score += 3;
       if (/supplement|nutrition|facts|ingredients|panel|label|back/.test(alt)) score += 3;
-      return { el, score };
+      
+      // Boost mid-carousel positions (5-20) and filenames containing facts|panel|ingredients
+      if (index >= 4 && index < 20) score += 1; // positions 5-20 (0-indexed)
+      if (/facts|panel|ingredients/.test(src)) score += 2; // filename boost
+      
+      return { el, score, index };
     })
     .filter((o) => o.score > 0)
     .sort((a, b) => b.score - a.score)
