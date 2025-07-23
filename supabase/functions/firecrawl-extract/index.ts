@@ -48,9 +48,7 @@ interface Meta {
   firecrawlExtract?: { ms: number; status: number };
   firecrawlCrawl?: { ms: number; status: number };
   scrapfly?: { ms: number; status: number };
-  scraperapiMs?: number;
-  scraperapiStatus?: "success" | "empty" | "failed";
-  scraperapiHttpStatus?: number;
+  scraperapi?: { ms: number; status: number };
 }
 
 /* ---------------------------------------------------------------------------
@@ -67,7 +65,7 @@ async function firecrawlExtract(
       {
         method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ url, proxy, timeout: 10_000 }),
+      body: JSON.stringify({ urls: [url], timeout: 10_000 }),
     },
     20_000,
   );
@@ -88,7 +86,7 @@ async function firecrawlCrawl(
         method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-        url,
+        urls: [url],
         proxy,
         extractorOptions: { mode: "html" },
         timeout: 20_000,
@@ -114,14 +112,14 @@ async function scrapfly(
     url,
       render_js: "true",
       asp: "true",
-    ocr: "true",
+    country: "us",
     ...(stealth ? { stealth: "true", proxy: "datacenter" } : {}),
     });
   const t0 = Date.now();
   const res = await fetchWithTimeout(
       `https://api.scrapfly.io/scrape?${qs}`,
       {},
-    15_000,
+    30_000,
   );
   const ms = Date.now() - t0;
   const j = res.ok ? await res.json().catch(() => ({})) : {};
@@ -134,7 +132,7 @@ async function scrapfly(
 async function tryScraperApi(
   url: string,
   key: string,
-): Promise<{ html: string | null; status: "success" | "empty" | "failed"; httpStatus: number; ms: number }> {
+): Promise<{ html: string | null; ms: number; status: number }> {
   const params = new URLSearchParams({
     api_key: key,
     url,
@@ -147,21 +145,16 @@ async function tryScraperApi(
   const res = await fetchWithTimeout(
     `https://api.scraperapi.com?${params}`,
     {},
-    20_000,
+    30_000,
   );
   const ms = Date.now() - t0;
   
   if (!res.ok) {
-    return { html: null, status: "failed", httpStatus: res.status, ms };
+    return { html: null, ms, status: res.status };
   }
   
   const html = await res.text().catch(() => "");
-  
-  if (html.length > 1000) {
-    return { html, status: "success", httpStatus: res.status, ms };
-  } else {
-    return { html: null, status: "empty", httpStatus: res.status, ms };
-  }
+  return { html: html.length > 1000 ? html : null, ms, status: res.status };
 }
 
 /* ---------------------------------------------------------------------------
@@ -251,13 +244,12 @@ async function handler(req: Request): Promise<Response> {
     meta.firecrawlExtract = { ms, status };
     if (data?.content) {
       meta.provider = "firecrawlExtract";
-      // Return structured data with compatible _meta format
       return json({ 
         data, 
         _meta: { 
           ...meta, 
-          source: "firecrawl",  // Map provider to expected source name
-          provider: undefined   // Remove provider field to avoid confusion
+          source: "firecrawl",
+          provider: undefined
         } 
       });
     }
@@ -286,10 +278,8 @@ async function handler(req: Request): Promise<Response> {
 
   /* ScraperAPI */
   if (!html && env.SCRAPERAPI_KEY) {
-    const { html: h, status, httpStatus, ms } = await tryScraperApi(url, env.SCRAPERAPI_KEY);
-    meta.scraperapiMs = ms;
-    meta.scraperapiStatus = status;
-    meta.scraperapiHttpStatus = httpStatus;
+    const { html: h, ms, status } = await tryScraperApi(url, env.SCRAPERAPI_KEY);
+    meta.scraperapi = { ms, status };
     html = h;
     if (html) meta.provider = "scraperapi";
   }

@@ -168,13 +168,38 @@ function extractIngredients(doc: any, ocrText: string | null): {
   };
 
   // Try DOM first - enhanced extraction for any element with ingredient content
-  const elements = doc.querySelectorAll('p, li, div, span, td, section');
-  for (let i = 0; i < elements.length; i++) {
-    const element = elements[i];
-    const text = element.textContent || '';
-    if (/ingredient/i.test(text) && text.length >= 20) {
-      result.ingredients_raw = text.trim();
-      break;
+  const ingredientSelectors = [
+    'div.ingredients', 
+    'div#nutrition', 
+    'section#ingredients',
+    '.ingredient-list',
+    '[data-ingredients]',
+    'p, li, div, span, td, section'
+  ];
+  
+  for (const selector of ingredientSelectors.slice(0, -1)) { // Skip the last generic selector for now
+    const elements = doc.querySelectorAll(selector);
+    for (let i = 0; i < elements.length; i++) {
+      const element = elements[i];
+      const text = element.textContent || '';
+      if (/ingredient/i.test(text) && text.length >= 20) {
+        result.ingredients_raw = text.trim();
+        break;
+      }
+    }
+    if (result.ingredients_raw) break;
+  }
+
+  // Fallback to generic selectors if specific ones didn't work
+  if (!result.ingredients_raw) {
+    const elements = doc.querySelectorAll('p, li, div, span, td, section');
+    for (let i = 0; i < elements.length; i++) {
+      const element = elements[i];
+      const text = element.textContent || '';
+      if (/ingredient/i.test(text) && text.length >= 20) {
+        result.ingredients_raw = text.trim();
+        break;
+      }
     }
   }
 
@@ -242,16 +267,32 @@ function extractIngredients(doc: any, ocrText: string | null): {
 
 /** Extract supplement facts panel */
 function extractSupplementFacts(doc: any, ocrText: string | null): string | null {
-  // If OCR text includes "Supplement Facts" or "Nutrition Facts", return full OCR text (trimmed at 1200 chars)
+  // Enhanced OCR fallback: if DOM fails and OCR text contains "Nutrition Facts", return next 1200 chars
   if (ocrText && (/supplement\s*facts/i.test(ocrText) || /nutrition\s*facts/i.test(ocrText))) {
+    // Find the position of "Nutrition Facts" or "Supplement Facts"
+    const factsMatch = ocrText.match(/(supplement\s*facts|nutrition\s*facts)[\s\S]{0,1200}/i);
+    if (factsMatch) {
+      return factsMatch[0].length > 1200 ? factsMatch[0].substring(0, 1200).trim() : factsMatch[0].trim();
+    }
     return ocrText.length > 1200 ? ocrText.substring(0, 1200).trim() : ocrText.trim();
   }
 
-  // Try DOM selectors as fallback
-  const factsSelectors = ['.supplement-facts', '.nutrition-facts', '[data-supplement-facts]'];
+  // Enhanced DOM selectors
+  const factsSelectors = [
+    'div.nutrition-facts', 
+    'section#supplement-facts', 
+    'div#nutrition',
+    '.supplement-facts', 
+    '.nutrition-facts', 
+    '[data-supplement-facts]',
+    '.facts-panel',
+    '.supplement-panel',
+    '[data-nutrition]'
+  ];
+  
   for (const selector of factsSelectors) {
     const element = doc.querySelector(selector);
-    if (element?.textContent) {
+    if (element?.textContent && element.textContent.length > 50) {
       return element.textContent.trim();
     }
   }
@@ -377,7 +418,7 @@ function detectNumericDoses(ingredients: string, ocrText: string): boolean {
   const fullText = `${ingredients} ${ocrText}`;
   
   // Use the specified regex pattern for numeric doses
-  const numericDosePattern = /\b\d+(\.\d+)?\s?(mg|g|mcg|µg|iu|iu\.|%|calories)\b/i;
+  const numericDosePattern = /\b\d+(\.\d+)?\s?(mg|g|mcg|µg|iu|%|calories)\b/i;
   
   return numericDosePattern.test(fullText);
 }

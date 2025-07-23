@@ -66,11 +66,7 @@ const config: ExpoConfig = {
       openrouterApiKey: process.env.EXPO_PUBLIC_OPENROUTER_API_KEY,
       firecrawlApiKey: process.env.EXPO_PUBLIC_FIRECRAWL_API_KEY,
       eas: {
-<<<<<<< HEAD
-        projectId: 'your-eas-project-id', // Replace with your actual EAS project ID if you have one
-=======
         projectId: 'eed8a4b9-e354-47f0-9b92-b602a1e91e17'
->>>>>>> e42ba0e (feat: Add structured extraction (title, ingredients) to firecrawl-extract with deno_dom)
       },
     },
   },
