@@ -45,6 +45,11 @@ type Provider = "firecrawlExtract" | "firecrawlCrawl" | "scrapfly" | "scraperapi
 interface Meta {
   provider: Provider;
   proxy: string;
+  tried: string[];
+  success: string | null;
+  firecrawlStatus?: number;
+  scrapflyStatus?: number;
+  scraperapiStatus?: number;
   firecrawlExtract?: { ms: number; status: number };
   firecrawlCrawl?: { ms: number; status: number };
   scrapfly?: { ms: number; status: number };
@@ -58,20 +63,44 @@ async function firecrawlExtract(
   url: string,
   key: string,
   proxy = "auto",
-): Promise<{ data: any | null; ms: number; status: number }> {
+): Promise<{ data: any | null; html: string | null; ms: number; status: number }> {
   const t0 = Date.now();
-  const res = await fetchWithTimeout(
+  let res = await fetchWithTimeout(
       "https://api.firecrawl.dev/v1/extract",
       {
         method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ urls: [url], timeout: 10_000 }),
+      body: JSON.stringify({ urls: [url], proxy, timeout: 10_000 }),
     },
     20_000,
   );
+  
+  // If 429, retry once with stealth proxy
+  if (res.status === 429 && proxy !== "stealth") {
+    res = await fetchWithTimeout(
+        "https://api.firecrawl.dev/v1/extract",
+        {
+          method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ urls: [url], proxy: "stealth", timeout: 10_000 }),
+      },
+      20_000,
+    );
+  }
+  
   const ms = Date.now() - t0;
   const j = res.ok ? await res.json().catch(() => ({})) : {};
-  return { data: j?.data ?? null, ms, status: res.status };
+  
+  // Check if we have structured data but missing nutrition/supplement facts
+  const hasNutritionData = j?.data?.content && /nutrition facts|supplement facts/i.test(j.data.content);
+  const htmlContent = j?.data?.html || null;
+  
+  // If structured content lacks nutrition but HTML has it, return HTML for parsing
+  if (j?.data?.content && !hasNutritionData && htmlContent && /nutrition facts|supplement facts/i.test(htmlContent)) {
+    return { data: null, html: htmlContent, ms, status: res.status };
+  }
+  
+  return { data: j?.data ?? null, html: htmlContent, ms, status: res.status };
 }
 
 async function firecrawlCrawl(
@@ -236,14 +265,27 @@ async function handler(req: Request): Promise<Response> {
     .catch(() => ({}));
   if (!url) return json({ error: "url is required" }, 400);
 
-  const meta: Meta = { provider: "none", proxy };
+  const meta: Meta = { 
+    provider: "none", 
+    proxy, 
+    tried: [], 
+    success: null,
+    firecrawlStatus: undefined,
+    scrapflyStatus: undefined,
+    scraperapiStatus: undefined
+  };
 
   /* Firecrawl /extract */
+  let html: string | null = null;
   if (!forceScrapfly && env.FIRECRAWL_API_KEY) {
-    const { data, ms, status } = await firecrawlExtract(url, env.FIRECRAWL_API_KEY, proxy);
+    meta.tried.push("firecrawl");
+    const { data, html: extractHtml, ms, status } = await firecrawlExtract(url, env.FIRECRAWL_API_KEY, proxy);
     meta.firecrawlExtract = { ms, status };
+    meta.firecrawlStatus = status;
+    
     if (data?.content) {
       meta.provider = "firecrawlExtract";
+      meta.success = "firecrawl";
       return json({ 
         data, 
         _meta: { 
@@ -253,35 +295,58 @@ async function handler(req: Request): Promise<Response> {
         } 
       });
     }
+    
+    // Use HTML from extract if available
+    if (extractHtml) {
+      html = extractHtml;
+      meta.provider = "firecrawlExtract";
+      meta.success = "firecrawl";
+    }
   }
 
   /* Firecrawl /crawl */
-  let html: string | null = null;
-  if (!forceScrapfly && env.FIRECRAWL_API_KEY) {
+  if (!html && !forceScrapfly && env.FIRECRAWL_API_KEY) {
     const { html: h, ms, status } = await firecrawlCrawl(url, env.FIRECRAWL_API_KEY, proxy);
     meta.firecrawlCrawl = { ms, status };
-    html = h;
-    if (html) meta.provider = "firecrawlCrawl";
+    if (!meta.firecrawlStatus) meta.firecrawlStatus = status;
+    
+    if (h) {
+      html = h;
+      meta.provider = "firecrawlCrawl";
+      meta.success = "firecrawl";
+    }
   }
 
   /* Scrapfly */
   if (!html && env.SCRAPFLY_API_KEY) {
+    meta.tried.push("scrapfly");
     const { html: h, ms, status } = await scrapfly(
       url,
       env.SCRAPFLY_API_KEY,
       (globalThis as any).Deno?.env?.get?.("SCRAPFLY_STEALTH") === "true",
     );
     meta.scrapfly = { ms, status };
-    html = h;
-    if (html) meta.provider = "scrapfly";
+    meta.scrapflyStatus = status;
+    
+    if (h) {
+      html = h;
+      meta.provider = "scrapfly";
+      meta.success = "scrapfly";
+    }
   }
 
   /* ScraperAPI */
   if (!html && env.SCRAPERAPI_KEY) {
+    meta.tried.push("scraperapi");
     const { html: h, ms, status } = await tryScraperApi(url, env.SCRAPERAPI_KEY);
     meta.scraperapi = { ms, status };
-    html = h;
-    if (html) meta.provider = "scraperapi";
+    meta.scraperapiStatus = status;
+    
+    if (h) {
+      html = h;
+      meta.provider = "scraperapi";
+      meta.success = "scraperapi";
+    }
   }
 
   if (!html) return json({ error: "No provider returned HTML", _meta: { ...meta, source: "none" } }, 502);

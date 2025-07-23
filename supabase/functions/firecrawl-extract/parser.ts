@@ -172,6 +172,8 @@ function extractIngredients(doc: any, ocrText: string | null): {
     'div.ingredients', 
     'div#nutrition', 
     'section#ingredients',
+    'div.single-supplement-facts',
+    'table.supplement-facts',
     '.ingredient-list',
     '[data-ingredients]',
     'p, li, div, span, td, section'
@@ -183,8 +185,12 @@ function extractIngredients(doc: any, ocrText: string | null): {
       const element = elements[i];
       const text = element.textContent || '';
       if (/ingredient/i.test(text) && text.length >= 20) {
-        result.ingredients_raw = text.trim();
-        break;
+        // Whitespace normalizer - normalize before length check
+        const normalizedText = text.replace(/\s+/g, " ").trim();
+        if (normalizedText.length >= 100) {
+          result.ingredients_raw = normalizedText;
+          break;
+        }
       }
     }
     if (result.ingredients_raw) break;
@@ -197,8 +203,12 @@ function extractIngredients(doc: any, ocrText: string | null): {
       const element = elements[i];
       const text = element.textContent || '';
       if (/ingredient/i.test(text) && text.length >= 20) {
-        result.ingredients_raw = text.trim();
-        break;
+        // Whitespace normalizer
+        const normalizedText = text.replace(/\s+/g, " ").trim();
+        if (normalizedText.length >= 100) {
+          result.ingredients_raw = normalizedText;
+          break;
+        }
       }
     }
   }
@@ -272,9 +282,11 @@ function extractSupplementFacts(doc: any, ocrText: string | null): string | null
     // Find the position of "Nutrition Facts" or "Supplement Facts"
     const factsMatch = ocrText.match(/(supplement\s*facts|nutrition\s*facts)[\s\S]{0,1200}/i);
     if (factsMatch) {
-      return factsMatch[0].length > 1200 ? factsMatch[0].substring(0, 1200).trim() : factsMatch[0].trim();
+      const normalizedText = factsMatch[0].replace(/\s+/g, " ").trim();
+      return normalizedText.length > 1200 ? normalizedText.substring(0, 1200) : normalizedText;
     }
-    return ocrText.length > 1200 ? ocrText.substring(0, 1200).trim() : ocrText.trim();
+    const normalizedOcr = ocrText.replace(/\s+/g, " ").trim();
+    return normalizedOcr.length > 1200 ? normalizedOcr.substring(0, 1200) : normalizedOcr;
   }
 
   // Enhanced DOM selectors
@@ -282,6 +294,8 @@ function extractSupplementFacts(doc: any, ocrText: string | null): string | null
     'div.nutrition-facts', 
     'section#supplement-facts', 
     'div#nutrition',
+    'div.single-supplement-facts',
+    'table.supplement-facts',
     '.supplement-facts', 
     '.nutrition-facts', 
     '[data-supplement-facts]',
@@ -293,8 +307,18 @@ function extractSupplementFacts(doc: any, ocrText: string | null): string | null
   for (const selector of factsSelectors) {
     const element = doc.querySelector(selector);
     if (element?.textContent && element.textContent.length > 50) {
-      return element.textContent.trim();
+      // Whitespace normalizer - normalize before length check
+      const text = element.textContent.replace(/\s+/g, " ").trim();
+      if (text.length > 300) {
+        return text;
+      }
     }
+  }
+
+  // OCR fallback - only if DOM failed and OCRSPACE_API_KEY exists
+  if (!ocrText && (globalThis as any).Deno?.env?.get?.("OCRSPACE_API_KEY")) {
+    // This would be called from the main extraction flow with OCR results
+    // The OCR logic is already handled above when ocrText is provided
   }
 
   return null;
