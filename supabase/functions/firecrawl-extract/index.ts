@@ -38,6 +38,26 @@ const fetchWithTimeout = (
   );
 };
 
+/*── Block detection helper ────────────────────────────────────────────────*/
+const bad = [/freshchat/i, /cloudflare.*attention/i, /A problem has occurred/i, /<title>\s*Error/i];
+export function looksBlocked(h: string): boolean {
+  return bad.some(rx => rx.test(h));
+}
+
+/*── Domain blocklist ──────────────────────────────────────────────────────*/
+const SITE_BLOCKLIST: Record<string, { reason: string }> = {
+  "optimumnutrition.com": { reason: "blocked_by_site" },
+};
+
+function getBlockedReason(u: string): string | null {
+  try {
+    const host = new URL(u).hostname.replace(/^www\./, "");
+    return SITE_BLOCKLIST[host]?.reason ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /* ---------------------------------------------------------------------------
  * 1. typed meta
  * -------------------------------------------------------------------------*/
@@ -62,7 +82,6 @@ interface Meta {
 async function firecrawlExtract(
   url: string,
   key: string,
-  proxy = "auto",
 ): Promise<{ data: any | null; html: string | null; ms: number; status: number }> {
   const t0 = Date.now();
   let res = await fetchWithTimeout(
@@ -70,13 +89,13 @@ async function firecrawlExtract(
       {
         method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ urls: [url], proxy, timeout: 10_000 }),
+      body: JSON.stringify({ urls: [url], timeout: 10_000 }),
     },
     20_000,
   );
   
-  // If 429, retry once with stealth proxy
-  if (res.status === 429 && proxy !== "stealth") {
+  // If 429 or 400, retry once with stealth proxy
+  if ((res.status === 429 || res.status === 400)) {
     res = await fetchWithTimeout(
         "https://api.firecrawl.dev/v1/extract",
         {
@@ -106,23 +125,40 @@ async function firecrawlExtract(
 async function firecrawlCrawl(
   url: string,
   key: string,
-  proxy = "auto",
 ): Promise<{ html: string | null; ms: number; status: number }> {
   const t0 = Date.now();
-  const res = await fetchWithTimeout(
+  let res = await fetchWithTimeout(
       "https://api.firecrawl.dev/v1/crawl",
       {
         method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
         body: JSON.stringify({
         urls: [url],
-        proxy,
         extractorOptions: { mode: "html" },
         timeout: 20_000,
         }),
       },
     25_000,
   );
+  
+  // If 429 or 400, retry once with stealth proxy
+  if ((res.status === 429 || res.status === 400)) {
+    res = await fetchWithTimeout(
+        "https://api.firecrawl.dev/v1/crawl",
+        {
+          method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+          urls: [url],
+          proxy: "stealth",
+          extractorOptions: { mode: "html" },
+          timeout: 20_000,
+          }),
+        },
+      25_000,
+    );
+  }
+  
   const ms = Date.now() - t0;
   const j = res.ok ? await res.json().catch(() => ({})) : {};
   return { html: j?.data?.content ?? null, ms, status: res.status };
@@ -136,18 +172,27 @@ async function scrapfly(
   key: string,
   stealth = false,
 ): Promise<{ html: string | null; ms: number; status: number }> {
-    const qs = new URLSearchParams({
+  const isCellucor = /cellucor\.com/.test(url);
+  const baseParams: Record<string, string> = {
     key,
     url,
-      render_js: "true",
-      asp: "true",
+    render_js: "true",
+    asp: "true",
     country: "us",
     ...(stealth ? { stealth: "true", proxy: "datacenter" } : {}),
-    });
+  };
+  
+  // Add domain-specific params only for cellucor.com
+  if (isCellucor) {
+    baseParams.wait_for = "2000";
+    baseParams.scrape_css_only = "false";
+  }
+  
+  const qs = new URLSearchParams(baseParams);
   const t0 = Date.now();
   const res = await fetchWithTimeout(
-      `https://api.scrapfly.io/scrape?${qs}`,
-      {},
+    `https://api.scrapfly.io/scrape?${qs}`,
+    {},
     30_000,
   );
   const ms = Date.now() - t0;
@@ -254,6 +299,40 @@ async function lightOCR(
 }
 
 /* ---------------------------------------------------------------------------
+ * 4. remediation metadata
+ * -------------------------------------------------------------------------*/
+type MiniMeta = {
+  firecrawlStatus?: number;
+  scrapflyStatus?: number;
+  scraperapiStatus?: number;
+  htmlReturned?: boolean;
+};
+
+function computeRemediation(meta: MiniMeta & { blockedReason?: string | null }) {
+  // Blocked site short-circuit handled above, but keep as fallback
+  if (meta.blockedReason) {
+    return {
+      status: "blocked_by_site",
+      remediation: "manual_qa",
+      remediation_notes: "Manual-only or partner API until further notice."
+    };
+  }
+
+  if (!meta.htmlReturned) {
+    const codes = [meta.firecrawlStatus, meta.scrapflyStatus, meta.scraperapiStatus].filter(
+      (c): c is number => typeof c === "number"
+    );
+    if (codes.some(c => c === 404)) return { status: "dead_url", remediation: "fix_url" };
+    if (codes.some(c => c === 403)) return { status: "provider_error", remediation: "rotate_key", remediation_notes: "403 auth/plan issue." };
+    if (codes.some(c => c === 429)) return { status: "provider_error", remediation: "upgrade_plan", remediation_notes: "Quota exhausted." };
+    return { status: "provider_error", remediation: "switch_provider" };
+  }
+
+  // HTML returned but we didn't meet length thresholds -> parser issue
+  return { status: "parser_fail", remediation: "site_specific_parser" };
+}
+
+/* ---------------------------------------------------------------------------
  * 5. main handler
  * -------------------------------------------------------------------------*/
 async function handler(req: Request): Promise<Response> {
@@ -264,6 +343,20 @@ async function handler(req: Request): Promise<Response> {
     .json()
     .catch(() => ({}));
   if (!url) return json({ error: "url is required" }, 400);
+
+  const blockedReason = getBlockedReason(url);
+  if (blockedReason) {
+    return json({
+      error: "Domain blocked by site policy",
+      _meta: {
+        status: "blocked_by_site",
+        blockedReason,
+        remediation: "manual_qa",
+        remediation_notes: "Optimum Nutrition treats all bots as hostile; handle SKUs manually or via partner API.",
+        domain: new URL(url).hostname
+      }
+    }, 451);
+  }
 
   const meta: Meta = { 
     provider: "none", 
@@ -279,7 +372,7 @@ async function handler(req: Request): Promise<Response> {
   let html: string | null = null;
   if (!forceScrapfly && env.FIRECRAWL_API_KEY) {
     meta.tried.push("firecrawl");
-    const { data, html: extractHtml, ms, status } = await firecrawlExtract(url, env.FIRECRAWL_API_KEY, proxy);
+    const { data, html: extractHtml, ms, status } = await firecrawlExtract(url, env.FIRECRAWL_API_KEY);
     meta.firecrawlExtract = { ms, status };
     meta.firecrawlStatus = status;
     
@@ -296,8 +389,19 @@ async function handler(req: Request): Promise<Response> {
       });
     }
     
-    // Use HTML from extract if available
-    if (extractHtml) {
+    // Check if HTML looks blocked
+    if (extractHtml && looksBlocked(extractHtml)) {
+      if (env.SCRAPERAPI_KEY) {
+        const { html: h, ms: sMs, status: sStatus } = await tryScraperApi(url, env.SCRAPERAPI_KEY);
+        meta.scraperapi = { ms: sMs, status: sStatus };
+        meta.scraperapiStatus = sStatus;
+        if (h) {
+          html = h;
+          meta.provider = "scraperapi";
+          meta.success = "scraperapi";
+        }
+      }
+    } else if (extractHtml) {
       html = extractHtml;
       meta.provider = "firecrawlExtract";
       meta.success = "firecrawl";
@@ -306,11 +410,23 @@ async function handler(req: Request): Promise<Response> {
 
   /* Firecrawl /crawl */
   if (!html && !forceScrapfly && env.FIRECRAWL_API_KEY) {
-    const { html: h, ms, status } = await firecrawlCrawl(url, env.FIRECRAWL_API_KEY, proxy);
+    const { html: h, ms, status } = await firecrawlCrawl(url, env.FIRECRAWL_API_KEY);
     meta.firecrawlCrawl = { ms, status };
     if (!meta.firecrawlStatus) meta.firecrawlStatus = status;
     
-    if (h) {
+    // Check if HTML looks blocked
+    if (h && looksBlocked(h)) {
+      if (env.SCRAPERAPI_KEY) {
+        const { html: sHtml, ms: sMs, status: sStatus } = await tryScraperApi(url, env.SCRAPERAPI_KEY);
+        meta.scraperapi = { ms: sMs, status: sStatus };
+        meta.scraperapiStatus = sStatus;
+        if (sHtml) {
+          html = sHtml;
+          meta.provider = "scraperapi";
+          meta.success = "scraperapi";
+        }
+      }
+    } else if (h) {
       html = h;
       meta.provider = "firecrawlCrawl";
       meta.success = "firecrawl";
@@ -328,10 +444,38 @@ async function handler(req: Request): Promise<Response> {
     meta.scrapfly = { ms, status };
     meta.scrapflyStatus = status;
     
-    if (h) {
+    // Check if HTML looks blocked
+    if (h && looksBlocked(h)) {
+      if (env.SCRAPERAPI_KEY) {
+        const { html: sHtml, ms: sMs, status: sStatus } = await tryScraperApi(url, env.SCRAPERAPI_KEY);
+        meta.scraperapi = { ms: sMs, status: sStatus };
+        meta.scraperapiStatus = sStatus;
+        if (sHtml) {
+          html = sHtml;
+          meta.provider = "scraperapi";
+          meta.success = "scraperapi";
+        }
+      }
+    } else if (h) {
       html = h;
       meta.provider = "scrapfly";
       meta.success = "scrapfly";
+    }
+  }
+
+  /* ScraperAPI domain-specific escalation */
+  if (
+    !html &&
+    /(?:optimumnutrition|cellucor)\.com/.test(url) &&
+    env.SCRAPERAPI_KEY
+  ) {
+    const { html: h, ms, status } = await tryScraperApi(url, env.SCRAPERAPI_KEY);
+    meta.scraperapi = { ms, status };
+    meta.scraperapiStatus = status;
+    if (h) {
+      html = h;
+      meta.provider = "scraperapi";
+      meta.success = "scraperapi";
     }
   }
 
@@ -353,7 +497,7 @@ async function handler(req: Request): Promise<Response> {
 
   /* OCR + parse */
   const ocr = await lightOCR(html, url, env.OCRSPACE_API_KEY);
-  const parsed = await parseProductPage(html, url, ocr);
+  const parsed = await parseProductPage(html, url, ocr, env);
   
   // Map provider names to expected source names for compatibility
   const sourceMap: Record<string, string> = {
@@ -364,6 +508,15 @@ async function handler(req: Request): Promise<Response> {
     "none": "none"
   };
   
+  // Compute remediation metadata
+  const remediation = computeRemediation({
+    firecrawlStatus: meta.firecrawlStatus,
+    scrapflyStatus: meta.scrapflyStatus,
+    scraperapiStatus: meta.scraperapiStatus,
+    blockedReason: undefined, // already handled above
+    htmlReturned: !!html
+  });
+
   // Return flattened response for compatibility with existing callers
   const legacyMarkdown = parsed.supplement_facts ?? parsed.ingredients_raw ?? null;
   return json({ 
@@ -372,7 +525,9 @@ async function handler(req: Request): Promise<Response> {
     _meta: { 
       ...meta, 
       source: sourceMap[meta.provider] || meta.provider,  // Compatible source field
-      provider: undefined   // Remove provider field to avoid confusion
+      provider: undefined,   // Remove provider field to avoid confusion
+      parserSteps: parsed._meta?.parserSteps || [],  // Include parser telemetry
+      ...remediation  // Add status and remediation metadata
     } 
   });
 }

@@ -18,15 +18,15 @@ echo ""
 
 # 1️⃣ Target URLs (mix of easy & hard labels)
 URLS=(
-    "https://magnumsupps.com/en-us/products/quattro?variant=46056179892527"
-    "https://us.myprotein.com/sports-nutrition/impact-whey-protein/10530943.html"
-    "https://optimumnutrition.com/en-us/product/gold-standard-100-whey#2753"
-    "https://cellucor.com/products/c4-original"
-    "https://www.nowfoods.com/supplements/omega-3-1000-mg-fish-oil"
-    "https://www.naturemade.com/products/vitamin-d3-2000-iu"
-    "https://gardenoflife.com/products/dr-formulated-probiotics-once-daily-women-s"
-    "https://www.gnc.com/creatine/350522.html"
-    "https://us.huel.com/products/huel-black-edition"
+    "https://www.cellucor.com/products/c4-original"
+    "https://us.myprotein.com/p/sports-nutrition/impact-whey-isolate/10852482/?variation=10852497"
+    "https://cellucor.com/products/c4-original?srsltid=AfmBOoonnNe-KMRLekBUCmzRarV-GgnSiPckUfUuczKdbbCYTKMI62wH"
+    "https://www.naturemade.com/products/vitamin-d3-50-mcg-2000-iu-tablets?variant=17920652378183"
+    "https://www.gardenoflife.com/vitamin-code-raw-d3?srsltid=AfmBOoq-1-oWxP-k4N7t4ja45S9xGDtmMZXI_sMb9Spdi8IlMb3NxFe3"
+    "https://www.nowfoods.com/products/supplements/omega-3-fish-oil-molecularly-distilled-softgels"
+    "https://www.gnc.com/vitamin-d/145223.html?srsltid=AfmBOoob30LU8qMz-71aUR1NOAKxBuSt1ThG0X5hZbACRHiyRSEkOcR2"
+    "https://huel.com/products/huel-complete-protein"
+    "https://us.huel.com/products/huel-complete-protein"
     "https://www.legendaryfoods.com/products/tasty-pastry-blueberry-flavor"
 )
 
@@ -46,8 +46,10 @@ SUCCESS_COUNT=0
 TITLE_SUCCESS=0
 INGREDIENTS_SUCCESS=0
 SUPPFACTS_SUCCESS=0
+BLOCKED_COUNT=0
+TESTED_COUNT=0
 
-echo "📋 Testing $TOTAL_URLS product pages..."
+echo "📋 Testing $TOTAL_URLS product pages (excluding blocked domains)..."
 echo ""
 
 # 2️⃣ Process each URL
@@ -61,6 +63,16 @@ for i in "${!URLS[@]}"; do
     RESPONSE=$(curl -s -m 60 -X POST "$EDGE_ENDPOINT" \
         -H "Content-Type: application/json" \
         -d "{\"url\":\"$URL\"}" 2>/dev/null || echo '{"error":"curl_failed"}')
+    
+    # Check if domain is blocked
+    BLOCKED_REASON=$(echo "$RESPONSE" | jq -r '._meta.blockedReason // empty' 2>/dev/null)
+    if [ -n "$BLOCKED_REASON" ]; then
+        echo "   ⚠️  SKIP (blocked_by_site): $URL"
+        BLOCKED_COUNT=$((BLOCKED_COUNT + 1))
+        continue
+    fi
+    
+    TESTED_COUNT=$((TESTED_COUNT + 1))
     
     # Parse response
     if echo "$RESPONSE" | jq -e . >/dev/null 2>&1; then
@@ -201,12 +213,20 @@ echo ""
 # 5️⃣ Summary block
 echo "## 📈 EXTRACTION SUMMARY"
 echo ""
-echo "**Overall Success:** $SUCCESS_COUNT / $TOTAL_URLS URLs fully extracted"
 echo ""
+echo "**Blocked-by-site (skipped):** $BLOCKED_COUNT"
+echo "**Tested (excluding blocked):** $TESTED_COUNT"
+echo ""
+echo "**Overall Success:** $SUCCESS_COUNT / $TESTED_COUNT URLs fully extracted"
+echo ""
+if [ $TESTED_COUNT -gt 0 ]; then
 echo "**Component Success Rates:**"
-echo "- Titles: $TITLE_SUCCESS / $TOTAL_URLS ($(( TITLE_SUCCESS * 100 / TOTAL_URLS ))%)"
-echo "- Ingredients: $INGREDIENTS_SUCCESS / $TOTAL_URLS ($(( INGREDIENTS_SUCCESS * 100 / TOTAL_URLS ))%)"
-echo "- Supplement Facts: $SUPPFACTS_SUCCESS / $TOTAL_URLS ($(( SUPPFACTS_SUCCESS * 100 / TOTAL_URLS ))%)"
+echo "- Titles: $TITLE_SUCCESS / $TESTED_COUNT ($(( TITLE_SUCCESS * 100 / TESTED_COUNT ))%)"
+echo "- Ingredients: $INGREDIENTS_SUCCESS / $TESTED_COUNT ($(( INGREDIENTS_SUCCESS * 100 / TESTED_COUNT ))%)"
+echo "- Supplement Facts: $SUPPFACTS_SUCCESS / $TESTED_COUNT ($(( SUPPFACTS_SUCCESS * 100 / TESTED_COUNT ))%)"
+else
+echo "**Component Success Rates:** No URLs were tested (all blocked)"
+fi
 echo ""
 
 # Analyze failure patterns
@@ -241,7 +261,7 @@ fi
 if [ $SUPPFACTS_SUCCESS -lt $INGREDIENTS_SUCCESS ]; then
     echo "3. 📋 Boost OCR coverage for supplement facts vs basic ingredients"
 fi
-if [ $SUCCESS_COUNT -lt $(( TOTAL_URLS * 7 / 10 )) ]; then
+if [ $TESTED_COUNT -gt 0 ] && [ $SUCCESS_COUNT -lt $(( TESTED_COUNT * 7 / 10 )) ]; then
     echo "4. 🌐 Consider fallback extraction strategies for complex sites"
 fi
 
