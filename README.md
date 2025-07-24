@@ -353,3 +353,18 @@ curl -X POST "https://your-project.supabase.co/functions/v1/resolve-upc" \
 - **Issues**: [GitHub Issues](https://github.com/your-repo/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/your-repo/discussions)
 - **Documentation**: This README and inline code comments
+## 🚫 Scrape Policy
+
+Some brands (e.g., Optimum Nutrition) aggressively block all automated scraping. These are marked `blocked_by_site` (HTTP 451), excluded from automated E2E success rates, and handled manually or via partner APIs. We auto-skip blocked domains in nightly runs and surface a `_meta.remediation` for product/ops triage.
+
+### Domain Blocklist
+
+- **optimumnutrition.com**: All scraping attempts blocked by site; manual SKU handling required
+
+### Remediation Status Codes
+
+- `success`: Full extraction completed (title + ingredients + supplement facts)
+- `parser_fail`: HTML retrieved but extraction incomplete; needs site-specific parser
+- `provider_error`: Network/API issues; may need key rotation or provider switch
+- `blocked_by_site`: Domain blocks all bots; requires manual handling
+- `dead_url`: 404 errors; URL needs updating
