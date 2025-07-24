@@ -308,7 +308,7 @@ type MiniMeta = {
   htmlReturned?: boolean;
 };
 
-function computeRemediation(meta: MiniMeta & { blockedReason?: string | null }) {
+function computeRemediation(meta: MiniMeta & { blockedReason?: string | null; parsed?: any }) {
   // Blocked site short-circuit handled above, but keep as fallback
   if (meta.blockedReason) {
     return {
@@ -328,7 +328,15 @@ function computeRemediation(meta: MiniMeta & { blockedReason?: string | null }) 
     return { status: "provider_error", remediation: "switch_provider" };
   }
 
-  // HTML returned but we didn't meet length thresholds -> parser issue
+  // Check if extraction was successful (all 3 key fields present)
+  const parsed = meta.parsed;
+  if (parsed?.title && 
+      parsed?.ingredients_raw && parsed.ingredients_raw.length >= 100 &&
+      parsed?.supplement_facts && parsed.supplement_facts.length >= 200) {
+    return { status: "success", remediation: "none" };
+  }
+
+  // HTML returned but we didn't meet success thresholds -> parser issue
   return { status: "parser_fail", remediation: "site_specific_parser" };
 }
 
@@ -514,7 +522,8 @@ async function handler(req: Request): Promise<Response> {
     scrapflyStatus: meta.scrapflyStatus,
     scraperapiStatus: meta.scraperapiStatus,
     blockedReason: undefined, // already handled above
-    htmlReturned: !!html
+    htmlReturned: !!html,
+    parsed: parsed
   });
 
   // Return flattened response for compatibility with existing callers
