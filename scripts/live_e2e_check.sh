@@ -16,6 +16,18 @@ EDGE_ENDPOINT="$SUPABASE_URL/functions/v1/firecrawl-extract"
 echo "🚀 Testing Edge Function at: $EDGE_ENDPOINT"
 echo ""
 
+# --- blocked‑domain sanity ---
+blocked=$(curl -s -o /dev/null -w "%{http_code}" \
+  -X POST "$EDGE_ENDPOINT" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://optimumnutrition.com/foo"}')
+if [ "$blocked" != "451" ]; then
+  echo "❌ Blocked‑site test failed (HTTP $blocked)"
+  exit 1
+fi
+echo "✅ Optimum blocklist OK (451)"
+echo ""
+
 # 1️⃣ Target URLs (mix of easy & hard labels)
 URLS=(
     "https://www.cellucor.com/products/c4-original"

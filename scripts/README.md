@@ -22,8 +22,8 @@ export SUPABASE_URL="https://your-project.supabase.co"
 **Target URLs (mix of easy & hard labels):**
 1. Magnum Quattro (known working)
 2. MyProtein Impact Whey 
-3. Optimum Nutrition Gold Standard
-4. Cellucor C4 Original
+3. Cellucor C4 Original
+4. Cellucor C4 Original (variant)
 5. NOW Foods Omega-3
 6. Nature Made Vitamin D3
 7. Garden of Life Probiotics
