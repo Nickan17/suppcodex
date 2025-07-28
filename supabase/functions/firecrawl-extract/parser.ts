@@ -11,19 +11,464 @@ export interface ParsedProduct {
   supplement_facts?: string | null;
   other_ingredients?: string | null;
   proprietary_blends?: string[];
-  blend_warning?: boolean;      // NEW: Warns if proprietary blends hide doses
-  total_protein_g?: number | null; // NEW: Extracted protein amount from facts
+  blend_warning?: boolean;
+  total_protein_g?: number | null;
+  _meta?: {
+    parserSteps?: string[];
+  };
 }
 
 import { DOMParser } from "https://deno.land/x/deno_dom/deno-dom-wasm.ts";
 
+const fetchWithTimeout = (
+  url: string,
+  init: RequestInit = {},
+  ms = 25_000,
+): Promise<Response> => {
+  const ctl = new AbortController();
+  const id = setTimeout(() => ctl.abort(), ms);
+  return fetch(url, { ...init, signal: ctl.signal }).finally(() =>
+    clearTimeout(id)
+  );
+};
+
+/* ---------------------------------------------------------------------------
+ * 5. ultra‑light OCR panel grab
+ * -------------------------------------------------------------------------*/
+async function lightOCR(
+  html: string,
+  pageUrl: string,
+  apiKey?: string,
+): Promise<string | null> {
+  if (!apiKey) return null;
+
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  if (!doc) return null;
+
+  const imgs = [...doc.querySelectorAll("img")] as Element[];
+  if (!imgs.length) return null;
+
+  // Rank images by likelihood of containing supplement panel
+  const ranked = imgs
+    .map((el, index) => {
+      const src = (el.getAttribute("src") || "").toLowerCase();
+      const alt = (el.getAttribute("alt") || "").toLowerCase();
+      let score = 0;
+      if (/supplement|nutrition|facts|ingredients|panel|label|back/.test(src)) score += 3;
+      if (/supplement|nutrition|facts|ingredients|panel|label|back/.test(alt)) score += 3;
+
+      // Boost mid‑carousel positions (5‑20) and filenames hinting at panels
+      if (index >= 4 && index < 20) score += 1;          // positional boost
+      if (/facts|panel|ingredients/.test(src)) score += 2; // filename boost
+
+      return { el, score, index };
+    })
+    .filter((o) => o.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 8); // max 8 images to OCR
+
+  for (const { el } of ranked) {
+    let src = el.getAttribute("src") || "";
+    if (!src) continue;
+    if (src.startsWith("//")) src = `https:${src}`;
+    if (src.startsWith("/")) src = new URL(src, pageUrl).href;
+
+    try {
+      const fd = new FormData();
+      fd.append("url", src);
+      fd.append("apikey", apiKey);
+      fd.append("language", "eng");
+      fd.append("isOverlayRequired", "false");
+      fd.append("scale", "true");
+      const res = await fetchWithTimeout(
+        "https://api.ocr.space/parse/image",
+        { method: "POST", body: fd },
+        10_000,
+      );
+      const j = await res.json().catch(() => ({}));
+      const text = j?.ParsedResults?.[0]?.ParsedText as string | undefined;
+      if (!text) continue;
+      const clean = text.trim();
+      if (/ingredients?:/i.test(clean) || /supplement\s*facts/i.test(clean)) {
+        return clean;
+      }
+    } catch (_) {
+      // ignore OCR errors and continue
+    }
+  }
+  return null;
+}
+
+/** Walk DOM including shadow roots */
+function* walkDOM(node: any): Generator<any> {
+  yield node;
+  if (node.shadowRoot) {
+    yield* walkDOM(node.shadowRoot);
+  }
+  for (const child of node.children || []) {
+    yield* walkDOM(child);
+  }
+}
+
+/** Augment existing results with enhanced extraction - NO early returns */
+async function augmentFactsAndIngredients(doc: any, html: string, result: ParsedProduct, url: string, env: any): Promise<void> {
+  const steps = result._meta?.parserSteps || [];
+  
+  // Only enhance if ingredients_raw is missing or too short
+  if (!result.ingredients_raw || result.ingredients_raw.length < 100) {
+    // Shopify ingredients selectors
+    const shopifySelectors = ['div[data-ingredients]', '#ingredients', 'div.product-ingredients'];
+    for (const selector of shopifySelectors) {
+      const element = doc.querySelector(selector);
+      if (element?.textContent) {
+        const text = element.textContent.replace(/\s+/g, ' ').trim();
+        if (text.length >= 100) {
+          result.ingredients_raw = text;
+          steps.push('ingredients-shopify');
+          break;
+        }
+      }
+    }
+    
+    // LD-JSON hasIngredient
+    if (!result.ingredients_raw) {
+      const scripts = doc.querySelectorAll('script[type="application/ld+json"]');
+      for (let i = 0; i < scripts.length && !result.ingredients_raw; i++) {
+        try {
+          const data = JSON.parse(scripts[i].textContent || '');
+          const items = Array.isArray(data) ? data : [data];
+          for (const item of items) {
+            if (item.hasIngredient && Array.isArray(item.hasIngredient)) {
+              const ingredients = item.hasIngredient.map((ing: any) => 
+                typeof ing === 'string' ? ing : ing.name || ing.text || JSON.stringify(ing)
+              ).join(', ');
+              const text = `Ingredients: ${ingredients}`.replace(/\s+/g, ' ').trim();
+              if (text.length >= 100) {
+                result.ingredients_raw = text;
+                steps.push('ingredients-ld-json');
+                break;
+              }
+            }
+          }
+        } catch { continue; }
+      }
+    }
+    
+    // Shadow DOM / deep text sweep for ingredients
+    if (!result.ingredients_raw) {
+      try {
+        for (const node of walkDOM(doc.documentElement || doc)) {
+          if (node.textContent && /ingredient/i.test(node.textContent)) {
+            const text = node.textContent.replace(/\s+/g, ' ').trim();
+            if (text.length >= 100) {
+              result.ingredients_raw = text;
+              steps.push('ingredients-shadow-dom');
+              break;
+            }
+          }
+        }
+      } catch { /* fallback silently */ }
+    }
+  }
+  
+  // Only enhance if supplement_facts is missing or too short
+  if (!result.supplement_facts || result.supplement_facts.length < 300) {
+    // LD-JSON nutrition
+    const scripts = doc.querySelectorAll('script[type="application/ld+json"]');
+    for (let i = 0; i < scripts.length && !result.supplement_facts; i++) {
+      try {
+        const data = JSON.parse(scripts[i].textContent || '');
+        const items = Array.isArray(data) ? data : [data];
+        for (const item of items) {
+          if (item.nutrition || item['@type'] === 'NutritionInformation') {
+            let nutritionData = JSON.stringify(item.nutrition || item);
+            if (nutritionData.length > 1200) nutritionData = nutritionData.substring(0, 1200);
+            if (nutritionData.length >= 300) {
+              result.supplement_facts = nutritionData;
+              steps.push('ld-json-nutrition');
+              break;
+            }
+          }
+        }
+      } catch { continue; }
+    }
+    
+    // Table/dl normalizer
+    if (!result.supplement_facts) {
+      const tableSelectors = ['table[class*="supplement"]', 'table[class*="nutrition"]', 'dl[class*="supplement"]', 'dl[class*="nutrition"]'];
+      for (const selector of tableSelectors) {
+        const element = doc.querySelector(selector);
+        if (element) {
+          let text = '';
+          if (element.tagName === 'TABLE') {
+            const rows = element.querySelectorAll('tr');
+            const lines: string[] = [];
+            for (let i = 0; i < rows.length; i++) {
+              const cells = rows[i].querySelectorAll('td, th');
+              const values: string[] = [];
+              for (let j = 0; j < cells.length; j++) {
+                values.push(cells[j].textContent?.replace(/\s+/g, ' ').trim() || '');
+              }
+              if (values.length >= 2) lines.push(values.join('\t'));
+            }
+            text = lines.join('\n');
+          } else if (element.tagName === 'DL') {
+            const terms = element.querySelectorAll('dt');
+            const defs = element.querySelectorAll('dd');
+            const lines: string[] = [];
+            for (let i = 0; i < Math.min(terms.length, defs.length); i++) {
+              const term = terms[i].textContent?.trim() || '';
+              const def = defs[i].textContent?.trim() || '';
+              if (term && def) lines.push(`${term}\t${def}`);
+            }
+            text = lines.join('\n');
+          }
+          if (text.length >= 300) {
+            result.supplement_facts = text;
+            steps.push(`supplement-facts-table-${selector}`);
+            break;
+          }
+        }
+      }
+    }
+  }
+  
+  // 2-A MyProtein / GardenOfLife / GNC common div
+  if (!result.supplement_facts) {
+    const sel = doc.querySelector("div[class*='nutrition'],div.product-nutrition,div.product-nutrition-facts");
+    const txt = sel?.textContent?.replace(/\s+/g," ").trim();
+    if (txt && txt.length >= 300) {
+      result.supplement_facts = txt;
+      steps.push("facts-nutrition-div");
+    }
+  }
+
+  // 2-B MyProtein LD-JSON `.nutrition`
+  if (!result.supplement_facts) {
+    for (const s of doc.querySelectorAll("script[type='application/ld+json']")) {
+      try {
+        const o = JSON.parse(s.textContent || "{}");
+        if (o.nutrition) {
+          const j = JSON.stringify(o.nutrition).slice(0,1200);
+          if (j.length >= 300) {
+            result.supplement_facts = j;
+            steps.push("facts-ldjson-nutrition");
+            break;
+          }
+        }
+      } catch {}
+    }
+  }
+
+  // Table re-pack: if supplement_facts exists but < 300 chars, try to enhance
+  if (result.supplement_facts && result.supplement_facts.length < 300) {
+    const allTables = doc.querySelectorAll('table, dl');
+    for (let i = 0; i < allTables.length; i++) {
+      const element = allTables[i];
+      let text = '';
+      if (element.tagName === 'TABLE') {
+        const rows = element.querySelectorAll('tr');
+        const lines: string[] = [];
+        for (let j = 0; j < rows.length; j++) {
+          const cells = rows[j].querySelectorAll('td, th');
+          const values: string[] = [];
+          for (let k = 0; k < cells.length; k++) {
+            values.push(cells[k].textContent?.replace(/\s+/g, ' ').trim() || '');
+          }
+          if (values.length >= 2) lines.push(values.join('\t'));
+        }
+        text = lines.join('\n');
+      } else if (element.tagName === 'DL') {
+        const terms = element.querySelectorAll('dt');
+        const defs = element.querySelectorAll('dd');
+        const lines: string[] = [];
+        for (let j = 0; j < Math.min(terms.length, defs.length); j++) {
+          const term = terms[j].textContent?.trim() || '';
+          const def = defs[j].textContent?.trim() || '';
+          if (term && def) lines.push(`${term}\t${def}`);
+        }
+        text = lines.join('\n');
+      }
+      if (text.length >= 300) {
+        result.supplement_facts = text;
+        steps.push('table-repack');
+        break;
+      }
+    }
+    
+    // Shadow DOM / deep text sweep for supplement facts
+    if (!result.supplement_facts) {
+      try {
+        for (const node of walkDOM(doc.documentElement || doc)) {
+          if (node.textContent && /nutrition facts|supplement facts/i.test(node.textContent)) {
+            const text = node.textContent.replace(/\s+/g, ' ').trim();
+            if (text.length >= 300) {
+              result.supplement_facts = text;
+              steps.push('supplement-facts-shadow-dom');
+              break;
+            }
+          }
+        }
+      } catch { /* fallback silently */ }
+    }
+  }
+  
+  // MyProtein table
+  if (!result.supplement_facts) {
+    const mp = doc.querySelector("table.nutritionTable, div#nutritional-information");
+    const txt = mp?.textContent?.replace(/\s+/g," ").trim();
+    if (txt && txt.length >= 300) { result.supplement_facts = txt; steps.push("facts-myprotein-table"); }
+  }
+
+  // Garden of Life / GNC common
+  if (!result.supplement_facts) {
+    const g = doc.querySelector("table#nutrition-facts, table.nutrition-facts-table, div.nutrition-info");
+    const txt = g?.textContent?.replace(/\s+/g," ").trim();
+    if (txt && txt.length >= 300) { result.supplement_facts = txt; steps.push("facts-gol-gnc-table"); }
+  }
+
+  // Huel LD-JSON nutrition
+  if (!result.supplement_facts) {
+    for (const s of doc.querySelectorAll("script[type='application/ld+json']")) {
+      try {
+        const o = JSON.parse(s.textContent || "{}");
+        if (o?.nutrition) {
+          const j = JSON.stringify(o.nutrition).slice(0,1200);
+          if (j.length >= 300) { result.supplement_facts = j; steps.push("facts-huel-json"); break; }
+        }
+      } catch {}
+    }
+  }
+
+  // Legendary Foods section
+  if (!result.supplement_facts) {
+    const lf = doc.querySelector("section#nutrition, div#nutritionFacts")?.textContent;
+    if (lf && lf.replace(/\s+/g," ").trim().length >= 300) {
+      result.supplement_facts = lf.replace(/\s+/g," ").trim();
+      steps.push("facts-legendary-section");
+    }
+  }
+
+  // Legendary Foods nutrition JSON
+  if (!result.supplement_facts) {
+    const raw = doc.querySelector("#nutrition-json")?.textContent;
+    if (raw) { try { const o = JSON.parse(raw); const j = JSON.stringify(o).slice(0,1200);
+      if (j.length >= 300) { result.supplement_facts = j; steps.push("facts-legendary-json"); } } catch {} }
+  }
+
+  // 200-char nutrition override
+  if (result.supplement_facts && result.supplement_facts.length < 300) {
+    const t = result.supplement_facts.toLowerCase();
+    if (result.supplement_facts.length >= 200 && /(calories|% dv|mg|g)/.test(t)) {
+      steps.push("facts-accepted-200");
+    } else { result.supplement_facts = null; }
+  }
+
+  // 3 - Image-panel OCR fallback (NOW, Huel, Legendary)
+  if ((!result.supplement_facts || result.supplement_facts.length < 300) && env?.OCRSPACE_API_KEY) {
+    const ocr2 = await lightOCR(html, url, env.OCRSPACE_API_KEY);
+    if (ocr2 && ocr2.length >= 300) {
+      result.supplement_facts = ocr2;
+      steps.push("facts-ocr-panel");
+    }
+  }
+  
+  // Assign steps back to result
+  if (!result._meta) {
+    result._meta = { parserSteps: [] };
+  }
+  result._meta.parserSteps = steps;
+}
+
+/** Extract comprehensive supplement data from HTML and OCR */
+export async function parseProductPage(
+  html: string,
+  url: string,
+  ocrText: string | null = null,
+  env?: any,
+): Promise<ParsedProduct> {
+  console.log('[PARSER] Starting supplement extraction');
+  
+  let title = extractTitle(html);
+  
+  // Parse with DOM
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  
+  // --- Cellucor / Shopify title fallback ---
+  if (!title) {
+    const alt = doc.querySelector("h1.product-title, h1.product__title")?.textContent?.trim();
+    if (alt) title = alt;
+  }
+  
+  // Extract ingredients
+  const ingredients_raw = extractIngredients(doc, ocrText);
+  console.log('[PARSER] Ingredients extraction result:', ingredients_raw ? `${ingredients_raw.length} chars` : 'null');
+  
+  // Extract supplement facts
+  const supplement_facts = extractSupplementFacts(doc, ocrText);
+  
+  // Extract serving info
+  const serving_size = extractServingSize(doc, ocrText);
+  
+  // Extract directions
+  const directions = extractDirections(doc, ocrText);
+  
+  // Extract allergens and warnings
+  const allergens = extractAllergens(doc, ocrText);
+  const warnings = extractWarnings(doc, ocrText);
+  
+  // Extract manufacturer
+  const manufacturer = extractManufacturer(doc);
+  
+  // Detect if numeric doses are present
+  const numeric_doses_present = detectNumericDoses(ingredients_raw || '', ocrText || '');
+  
+  // Build result object
+  const result: ParsedProduct = {
+    title,
+    ingredients_raw,
+    numeric_doses_present,
+    serving_size,
+    directions,
+    allergens,
+    warnings,
+    manufacturer: manufacturer || null,
+    supplement_facts,
+    other_ingredients: null,
+    proprietary_blends: [],
+    blend_warning: false,
+    total_protein_g: null,
+    _meta: {
+      parserSteps: []
+    }
+  };
+  
+  // Augment with enhanced extraction
+  await augmentFactsAndIngredients(doc, html, result, url, env);
+  
+  // --- Legendary Foods nutrition div ---
+  if (!result.supplement_facts) {
+    const lf = doc.querySelector("div#nutritionFacts")?.textContent;
+    if (lf && lf.replace(/\s+/g, " ").trim().length >= 300) {
+      result.supplement_facts = lf.replace(/\s+/g, " ").trim();
+      if (!result._meta) result._meta = { parserSteps: [] };
+      result._meta.parserSteps = result._meta.parserSteps || [];
+      result._meta.parserSteps.push("legendary-nutrition-div");
+    }
+  }
+  
+  console.log('[PARSER] Extraction complete');
+  
+  return result;
+}
+
 /** Try multiple selectors and return the first non‑empty product title */
-export function extractTitle(html: string): string | undefined {
+export function extractTitle(html: string): string | null {
   // Optionally slice large HTML
   if (html.length > 100_000) html = html.slice(0, 100_000);
   const doc = new DOMParser().parseFromString(html, "text/html");
   if (!doc) {
-    return undefined;
+    return null;
   }
   const candidates = [
     doc?.querySelector("meta[property='og:title']")?.getAttribute("content"),
@@ -43,282 +488,104 @@ export function extractTitle(html: string): string | undefined {
     if (m) filtered.push(m[1].trim());
   }
   
-  const title = filtered[0];
+  let title = filtered[0];
   
-  // If we got a generic title, try to extract product name from HTML
-  if (title && /award\s*winning|magnum\s*nutraceuticals|sports\s*nutrition|supplement/i.test(title) && title.length > 30) {
-    // Look for more specific product selectors first
-    const productSelectors = [
-      'h1.product-title',
-      '.product-name', 
-      '[data-product-name]',
-      '.product h1'
-    ];
-    
-    for (const selector of productSelectors) {
-      const element = doc.querySelector(selector);
-      if (element?.textContent?.trim()) {
-        const productTitle = element.textContent.trim();
-        if (productTitle.length > 5 && !productTitle.includes('Award Winning')) {
-          return productTitle;
-        }
-      }
-    }
-    
-    // Manual search for product names in h1/h2 elements
-    const headings = doc.querySelectorAll('h1, h2, h3');
-    for (let i = 0; i < headings.length; i++) {
-      const heading = headings[i];
-      const text = heading.textContent?.trim() || '';
-      if (text.length > 5 && text.length < 100 && !text.includes('Award Winning') && !text.includes('Sports Nutrition')) {
-        // Look for supplement product patterns
-        if (/\b(protein|amino|creatine|pre-workout|bcaa|whey|casein|isolate|mass|gainer|burn|fat|energy)\b/i.test(text)) {
-          return text;
-        }
-      }
-    }
+  if (!title) {
+    const alt = doc.querySelector("h1.product-name,h1.product__title,h1.product-heading")?.textContent?.trim();
+    if (alt) title = alt;
   }
   
-  return title;
+  if (!title) {
+    const og = doc.querySelector("meta[property='og:title']")?.getAttribute("content")?.trim();
+    if (og) title = og;
+  }
+  
+  if (!title) {
+    const ld = doc.querySelector("script[type='application/ld+json']")?.textContent;
+    if (ld) { try { const j = JSON.parse(ld); if (j?.name) title = j.name.trim(); } catch {} }
+  }
+  
+  return title || null;
 }
 
-/** Extract comprehensive supplement data from HTML and OCR */
-export async function parseProductPage(
-  html: string,
-  url: string,
-  ocrText: string | null = null,
-): Promise<ParsedProduct> {
-  console.log('[PARSER] Starting comprehensive supplement extraction');
-  
-  const title = extractTitle(html);
-  
-  // Parse with DOM
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  
-  // OCR text passed from caller (may be null)
-  const ocrData = ocrText;
-  console.log('[PARSER] OCR extraction result:', ocrData ? `${ocrData.length} chars` : 'null');
-  
-  // Extract ingredients from multiple sources
-  const ingredientsData = extractIngredients(doc, ocrData);
-  console.log('[PARSER] Ingredients extraction result:', ingredientsData.ingredients_raw ? `${ingredientsData.ingredients_raw.length} chars` : 'null');
-  
-  // Extract supplement facts
-  const supplementFacts = extractSupplementFacts(doc, ocrData);
-  
-  // Extract serving info
-  const servingSize = extractServingSize(doc, ocrData);
-  
-  // Extract directions
-  const directions = extractDirections(doc, ocrData);
-  
-  // Extract allergens and warnings
-  const allergens = extractAllergens(doc, ocrData);
-  const warnings = extractWarnings(doc, ocrData);
-  
-  // Extract manufacturer
-  const manufacturer = extractManufacturer(doc);
-  
-  // Detect if numeric doses are present
-  const numeric_doses_present = detectNumericDoses(ingredientsData.ingredients_raw || '', ocrData || '');
-  
-  // NEW: Detect proprietary blend warning
-  const blend_warning = ingredientsData.proprietary_blends.length > 0;
-  
-  // NEW: Extract protein amount
-  const total_protein_g = extractProteinAmount(supplementFacts, ocrData);
-  
-  console.log('[PARSER] Final extraction summary:', {
-    title: title ? 'found' : 'missing',
-    ingredients: ingredientsData.ingredients_raw ? 'found' : 'missing',
-    numeric_doses_present,
-    serving_size: servingSize ? 'found' : 'missing',
-    supplement_facts: supplementFacts ? 'found' : 'missing',
-    blend_warning,
-    total_protein_g
-  });
-
-  return {
-    title: title || null,
-    ingredients_raw: ingredientsData.ingredients_raw || null,
-    numeric_doses_present,
-    serving_size: servingSize || null,
-    directions: directions || null,
-    allergens,
-    warnings,
-    manufacturer: manufacturer || null,
-    supplement_facts: supplementFacts || null,
-    other_ingredients: ingredientsData.other_ingredients || null,
-    proprietary_blends: ingredientsData.proprietary_blends,
-    blend_warning,
-    total_protein_g
-  };
-}
-
-/** Extract ingredients from DOM and OCR with proprietary blend detection */
-function extractIngredients(doc: any, ocrText: string | null): {
-  ingredients_raw: string | null;
-  other_ingredients: string | null;
-  proprietary_blends: string[];
-} {
-  const result = {
-    ingredients_raw: null as string | null,
-    other_ingredients: null as string | null,
-    proprietary_blends: [] as string[]
-  };
-
-  // Try DOM first - enhanced extraction for any element with ingredient content
+/** Simple ingredients extraction */
+function extractIngredients(doc: any, ocrText: string | null): string | null {
+  // Try standard ingredient selectors
   const ingredientSelectors = [
     'div.ingredients', 
-    'div#nutrition', 
     'section#ingredients',
-    'div.single-supplement-facts',
-    'table.supplement-facts',
     '.ingredient-list',
-    '[data-ingredients]',
-    'p, li, div, span, td, section'
+    'p, li, div, span, td'
   ];
   
-  for (const selector of ingredientSelectors.slice(0, -1)) { // Skip the last generic selector for now
+  for (const selector of ingredientSelectors) {
     const elements = doc.querySelectorAll(selector);
     for (let i = 0; i < elements.length; i++) {
       const element = elements[i];
       const text = element.textContent || '';
       if (/ingredient/i.test(text) && text.length >= 20) {
-        // Whitespace normalizer - normalize before length check
-        const normalizedText = text.replace(/\s+/g, " ").trim();
-        if (normalizedText.length >= 100) {
-          result.ingredients_raw = normalizedText;
-          break;
-        }
-      }
-    }
-    if (result.ingredients_raw) break;
-  }
-
-  // Fallback to generic selectors if specific ones didn't work
-  if (!result.ingredients_raw) {
-    const elements = doc.querySelectorAll('p, li, div, span, td, section');
-    for (let i = 0; i < elements.length; i++) {
-      const element = elements[i];
-      const text = element.textContent || '';
-      if (/ingredient/i.test(text) && text.length >= 20) {
-        // Whitespace normalizer
-        const normalizedText = text.replace(/\s+/g, " ").trim();
-        if (normalizedText.length >= 100) {
-          result.ingredients_raw = normalizedText;
-          break;
-        }
+        return text.replace(/\s+/g, " ").trim();
       }
     }
   }
 
-  // Fallback: look for any text node containing "Ingredients:" and grab block after it
-  if (!result.ingredients_raw) {
-    const bodyText = doc.body?.textContent || '';
-    const ingredientsMatch = bodyText.match(/ingredients?:\s*([^.]*(?:\.[^.]*){0,3})/i);
-    if (ingredientsMatch && ingredientsMatch[1].length >= 20) {
-      result.ingredients_raw = `Ingredients: ${ingredientsMatch[1].trim()}`;
-    }
+  // Body text fallback
+  const bodyText = doc.body?.textContent || '';
+  const ingredientsMatch = bodyText.match(/ingredients?:\s*([^.]*(?:\.[^.]*){0,3})/i);
+  if (ingredientsMatch && ingredientsMatch[1].length >= 20) {
+    return `Ingredients: ${ingredientsMatch[1].trim()}`;
   }
 
-  // If DOM failed or result too short, try OCR fallback
-  if ((!result.ingredients_raw || result.ingredients_raw.length < 50) && ocrText) {
-    // Take block after "Ingredients:" up to 400 chars or blank line
+  // OCR fallback
+  if (ocrText) {
     const ingredientsMatch = ocrText.match(/ingredients?:\s*([^\n]*(?:\n[^\n]+)*)/i);
     if (ingredientsMatch) {
       let ocrIngredients = ingredientsMatch[1].trim();
       if (ocrIngredients.length > 400) {
         ocrIngredients = ocrIngredients.substring(0, 400);
       }
-      // Stop at blank line
       const blankLineIndex = ocrIngredients.indexOf('\n\n');
       if (blankLineIndex > 0) {
         ocrIngredients = ocrIngredients.substring(0, blankLineIndex);
       }
-      if (ocrIngredients.length >= 50) {
-        result.ingredients_raw = ocrIngredients;
-      }
-    }
-    
-    // Look for other ingredients
-    const otherIngredientsMatch = ocrText.match(/other\s*ingredients?:[\s\S]{1,300}?(?=directions|warnings|allergen|$)/i);
-    if (otherIngredientsMatch) {
-      result.other_ingredients = otherIngredientsMatch[0].trim();
+      return ocrIngredients;
     }
   }
 
-  // Enhanced proprietary blend detection
-  if (result.ingredients_raw || ocrText) {
-    const searchText = `${result.ingredients_raw || ''} ${ocrText || ''}`;
-    const blendMatches = searchText.match(/\b[\w\s]*blend[\s\S]{1,200}?(?=\n|\.|,|$)/gi);
-    if (blendMatches) {
-      result.proprietary_blends = blendMatches.map(blend => blend.trim());
-    }
-    
-    // Also check for other proprietary indicators
-    const proprietaryPatterns = [
-      /proprietary\s+blend/gi,
-      /exclusive\s+blend/gi,
-      /complex.*blend/gi,
-      /matrix.*blend/gi
-    ];
-    
-    for (const pattern of proprietaryPatterns) {
-      const matches = searchText.match(pattern);
-      if (matches) {
-        result.proprietary_blends.push(...matches.map(m => m.trim()));
-      }
-    }
-  }
-
-  return result;
+  return null;
 }
 
-/** Extract supplement facts panel */
+/** Simple supplement facts extraction */
 function extractSupplementFacts(doc: any, ocrText: string | null): string | null {
-  // Enhanced OCR fallback: if DOM fails and OCR text contains "Nutrition Facts", return next 1200 chars
+  // Enhanced OCR fallback first since it usually has the best data
   if (ocrText && (/supplement\s*facts/i.test(ocrText) || /nutrition\s*facts/i.test(ocrText))) {
-    // Find the position of "Nutrition Facts" or "Supplement Facts"
     const factsMatch = ocrText.match(/(supplement\s*facts|nutrition\s*facts)[\s\S]{0,1200}/i);
     if (factsMatch) {
-      const normalizedText = factsMatch[0].replace(/\s+/g, " ").trim();
-      return normalizedText.length > 1200 ? normalizedText.substring(0, 1200) : normalizedText;
+      return factsMatch[0];
     }
-    const normalizedOcr = ocrText.replace(/\s+/g, " ").trim();
-    return normalizedOcr.length > 1200 ? normalizedOcr.substring(0, 1200) : normalizedOcr;
+    return ocrText;
   }
 
-  // Enhanced DOM selectors
+  // Try DOM selectors
   const factsSelectors = [
-    'div.nutrition-facts', 
-    'section#supplement-facts', 
-    'div#nutrition',
-    'div.single-supplement-facts',
-    'table.supplement-facts',
     '.supplement-facts', 
     '.nutrition-facts', 
-    '[data-supplement-facts]',
-    '.facts-panel',
-    '.supplement-panel',
-    '[data-nutrition]'
+    'div#nutrition',
+    'section#supplement-facts'
   ];
   
   for (const selector of factsSelectors) {
     const element = doc.querySelector(selector);
     if (element?.textContent && element.textContent.length > 50) {
-      // Whitespace normalizer - normalize before length check
-      const text = element.textContent.replace(/\s+/g, " ").trim();
-      if (text.length > 300) {
-        return text;
-      }
+      return element.textContent.replace(/\s+/g, " ").trim();
     }
   }
 
-  // OCR fallback - only if DOM failed and OCRSPACE_API_KEY exists
-  if (!ocrText && (globalThis as any).Deno?.env?.get?.("OCRSPACE_API_KEY")) {
-    // This would be called from the main extraction flow with OCR results
-    // The OCR logic is already handled above when ocrText is provided
+  // Body text fallback
+  const bodyText = doc.body?.textContent || '';
+  const factsMatch = bodyText.match(/((nutrition|supplement) facts[\s\S]{0,1200})/i);
+  if (factsMatch) {
+    return factsMatch[1];
   }
 
   return null;
@@ -326,16 +593,13 @@ function extractSupplementFacts(doc: any, ocrText: string | null): string | null
 
 /** Extract serving size information */
 function extractServingSize(doc: any, ocrText: string | null): string | null {
-  // Try OCR first
-  if (ocrText) {
-    const servingMatch = ocrText.match(/serving\s*size:?\s*([^\n]{1,100})/i);
-    if (servingMatch) {
-      return servingMatch[1].trim();
-    }
-  }
-
-  // Try DOM
-  const servingSelectors = ['.serving-size', '[data-serving-size]'];
+  // Try DOM first
+  const servingSelectors = [
+    '[data-serving-size]',
+    '.serving-size',
+    '.serving'
+  ];
+  
   for (const selector of servingSelectors) {
     const element = doc.querySelector(selector);
     if (element?.textContent) {
@@ -343,21 +607,33 @@ function extractServingSize(doc: any, ocrText: string | null): string | null {
     }
   }
 
-  return null;
-}
+  // Body text search
+  const bodyText = doc.body?.textContent || '';
+  const servingMatch = bodyText.match(/serving size:\s*([^\n.]+)/i);
+  if (servingMatch) {
+    return servingMatch[1].trim();
+  }
 
-/** Extract directions for use */
-function extractDirections(doc: any, ocrText: string | null): string | null {
-  // Try OCR first
+  // OCR fallback
   if (ocrText) {
-    const directionsMatch = ocrText.match(/directions?:[\s\S]{1,500}?(?=warnings|allergen|ingredients|$)/i);
-    if (directionsMatch) {
-      return directionsMatch[0].trim();
+    const ocrServingMatch = ocrText.match(/serving size:\s*([^\n]+)/i);
+    if (ocrServingMatch) {
+      return ocrServingMatch[1].trim();
     }
   }
 
-  // Try DOM
-  const directionSelectors = ['.directions', '.instructions', '[data-directions]'];
+  return null;
+}
+
+/** Extract directions */
+function extractDirections(doc: any, ocrText: string | null): string | null {
+  // Try DOM first
+  const directionSelectors = [
+    '.directions',
+    '#directions',
+    '[data-directions]'
+  ];
+  
   for (const selector of directionSelectors) {
     const element = doc.querySelector(selector);
     if (element?.textContent) {
@@ -365,111 +641,103 @@ function extractDirections(doc: any, ocrText: string | null): string | null {
     }
   }
 
+  // Body text search
+  const bodyText = doc.body?.textContent || '';
+  const directionsMatch = bodyText.match(/directions:\s*([^.]*(?:\.[^.]*){0,2})/i);
+  if (directionsMatch) {
+    return directionsMatch[1].trim();
+  }
+
+  // OCR fallback
+  if (ocrText) {
+    const ocrDirectionsMatch = ocrText.match(/directions:\s*([^\n]*(?:\n[^\n]+)*)/i);
+    if (ocrDirectionsMatch) {
+      return ocrDirectionsMatch[1].trim();
+    }
+  }
+
   return null;
 }
 
-/** Extract allergen information */
+/** Extract allergens as array */
 function extractAllergens(doc: any, ocrText: string | null): string[] {
   const allergens: string[] = [];
-
+  
   // Common allergens to look for
-  const commonAllergens = ['milk', 'soy', 'eggs', 'nuts', 'peanuts', 'wheat', 'fish', 'shellfish', 'tree nuts'];
+  const commonAllergens = ['milk', 'eggs', 'fish', 'shellfish', 'tree nuts', 'peanuts', 'wheat', 'soybeans', 'soy'];
+  
+  // Body text search
+  const bodyText = doc.body?.textContent || '';
+  const allergenMatch = bodyText.match(/allergens?:\s*([^.]+)/i);
+  if (allergenMatch) {
+    allergens.push(allergenMatch[1].trim());
+  }
 
-  // Try OCR first
+  // OCR search
   if (ocrText) {
-    const allergenMatch = ocrText.match(/allergen[^:]*:[\s\S]{1,200}?(?=\n|$)/i);
-    if (allergenMatch) {
-      const allergenText = allergenMatch[0].toLowerCase();
-      for (const allergen of commonAllergens) {
-        if (allergenText.includes(allergen)) {
-          allergens.push(allergen);
-        }
-      }
+    const ocrAllergenMatch = ocrText.match(/allergens?:\s*([^\n]+)/i);
+    if (ocrAllergenMatch) {
+      allergens.push(ocrAllergenMatch[1].trim());
     }
   }
 
-  return [...new Set(allergens)]; // Remove duplicates
+  return allergens;
 }
 
-/** Extract warnings */
+/** Extract warnings as array */
 function extractWarnings(doc: any, ocrText: string | null): string[] {
   const warnings: string[] = [];
-
-  // Try OCR first
-  if (ocrText) {
-    const warningsMatch = ocrText.match(/warnings?:[\s\S]{1,300}?(?=\n\n|$)/i);
-    if (warningsMatch) {
-      warnings.push(warningsMatch[0].trim());
-    }
+  
+  // Body text search
+  const bodyText = doc.body?.textContent || '';
+  const warningMatch = bodyText.match(/warnings?:\s*([^.]*(?:\.[^.]*){0,2})/i);
+  if (warningMatch) {
+    warnings.push(warningMatch[1].trim());
   }
 
-  // Try DOM
-  const warningSelectors = ['.warnings', '.warning', '[data-warnings]'];
-  for (const selector of warningSelectors) {
-    const element = doc.querySelector(selector);
-    if (element?.textContent) {
-      warnings.push(element.textContent.trim());
+  // OCR search
+  if (ocrText) {
+    const ocrWarningMatch = ocrText.match(/warnings?:\s*([^\n]*(?:\n[^\n]+)*)/i);
+    if (ocrWarningMatch) {
+      warnings.push(ocrWarningMatch[1].trim());
     }
   }
 
   return warnings;
 }
 
-/** Extract manufacturer information */
+/** Extract manufacturer */
 function extractManufacturer(doc: any): string | null {
-  const manufacturerSelectors = [
-    '[data-manufacturer]',
-    '.manufacturer',
-    '.brand-name',
-    'meta[property="product:brand"]'
-  ];
+  // Try meta tags first
+  const brand = doc.querySelector("meta[property='product:brand']")?.getAttribute("content");
+  if (brand) return brand;
 
-  for (const selector of manufacturerSelectors) {
-    const element = doc.querySelector(selector);
-    if (element) {
-      const content = element.getAttribute('content') || element.textContent;
-      if (content?.trim()) {
-        return content.trim();
+  // Try structured data
+  const scripts = doc.querySelectorAll('script[type="application/ld+json"]');
+  for (let i = 0; i < scripts.length; i++) {
+    try {
+      const data = JSON.parse(scripts[i].textContent || '');
+      if (data.brand) {
+        return typeof data.brand === 'string' ? data.brand : data.brand.name;
       }
+      if (data.manufacturer) {
+        return typeof data.manufacturer === 'string' ? data.manufacturer : data.manufacturer.name;
+      }
+    } catch {
+      continue;
     }
   }
 
   return null;
 }
 
-/** Detect if numeric doses are present (not hidden in proprietary blends) */
-function detectNumericDoses(ingredients: string, ocrText: string): boolean {
-  const fullText = `${ingredients} ${ocrText}`;
+/** Detect if numeric doses are present in text */
+function detectNumericDoses(ingredientsText: string, ocrText: string): boolean {
+  const combined = `${ingredientsText} ${ocrText}`;
   
-  // Use the specified regex pattern for numeric doses
-  const numericDosePattern = /\b\d+(\.\d+)?\s?(mg|g|mcg|µg|iu|%|calories)\b/i;
-  
-  return numericDosePattern.test(fullText);
-}
-
-/** Extract total protein amount from supplement facts */
-function extractProteinAmount(supplementFacts: string | null, ocrText: string | null): number | null {
-  const searchText = `${supplementFacts || ''} ${ocrText || ''}`;
-  
-  // Look for protein line with amount
-  const proteinMatches = [
-    /protein[^\d]*(\d+)\s*g/i,
-    /total\s*protein[^\d]*(\d+)\s*g/i,
-    /protein.*?(\d+)\s*g/i,
-    /(\d+)\s*g.*protein/i
-  ];
-  
-  for (const pattern of proteinMatches) {
-    const match = searchText.match(pattern);
-    if (match && match[1]) {
-      const amount = parseInt(match[1], 10);
-      if (amount > 0 && amount <= 100) { // Reasonable protein range
-        return amount;
-      }
-    }
-  }
-  
-  return null;
+  // Look for patterns like "500mg", "1g", "2.5 grams", etc.
+  const dosePattern = /\b\d+(?:\.\d+)?\s*(?:mg|g|mcg|iu|units?)\b/i;
+  return dosePattern.test(combined);
 }
 
 // OCR will be handled by the main function in index.ts 
