@@ -278,4 +278,11 @@ if [ $TESTED_COUNT -gt 0 ] && [ $SUCCESS_COUNT -lt $(( TESTED_COUNT * 7 / 10 )) 
 fi
 
 echo ""
-echo "✨ E2E validation complete! Use this data to prioritize parser improvements." 
+echo "✨ E2E validation complete! Use this data to prioritize parser improvements."
+
+# CI fail-fast: exit 1 if overall success < 4
+if [ $SUCCESS_COUNT -lt 4 ]; then
+    echo ""
+    echo "❌ CI FAIL: Overall success ($SUCCESS_COUNT) below threshold (4)"
+    exit 1
+fi 

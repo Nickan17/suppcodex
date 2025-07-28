@@ -256,7 +256,7 @@ async function augmentFactsAndIngredients(doc: any, html: string, result: Parsed
             break;
           }
         }
-      } catch {}
+      } catch (err) { console.warn('[parser json]', err); }
     }
   }
 
@@ -336,7 +336,7 @@ async function augmentFactsAndIngredients(doc: any, html: string, result: Parsed
           const j = JSON.stringify(o.nutrition).slice(0,1200);
           if (j.length >= 300) { result.supplement_facts = j; steps.push("facts-huel-json"); break; }
         }
-      } catch {}
+      } catch (err) { console.warn('[parser json]', err); }
     }
   }
 
@@ -353,7 +353,7 @@ async function augmentFactsAndIngredients(doc: any, html: string, result: Parsed
   if (!result.supplement_facts) {
     const raw = doc.querySelector("#nutrition-json")?.textContent;
     if (raw) { try { const o = JSON.parse(raw); const j = JSON.stringify(o).slice(0,1200);
-      if (j.length >= 300) { result.supplement_facts = j; steps.push("facts-legendary-json"); } } catch {} }
+      if (j.length >= 300) { result.supplement_facts = j; steps.push("facts-legendary-json"); } } catch (err) { console.warn('[parser json]', err); } }
   }
 
   // 200-char nutrition override
@@ -502,7 +502,7 @@ export function extractTitle(html: string): string | null {
   
   if (!title) {
     const ld = doc.querySelector("script[type='application/ld+json']")?.textContent;
-    if (ld) { try { const j = JSON.parse(ld); if (j?.name) title = j.name.trim(); } catch {} }
+    if (ld) { try { const j = JSON.parse(ld); if (j?.name) title = j.name.trim(); } catch (err) { console.warn('[parser json]', err); } }
   }
   
   return title || null;
