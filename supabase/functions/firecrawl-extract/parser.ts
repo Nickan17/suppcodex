@@ -114,6 +114,16 @@ function* walkDOM(node: any): Generator<any> {
 async function augmentFactsAndIngredients(doc: any, html: string, result: ParsedProduct, url: string, env: any): Promise<void> {
   const steps = result._meta?.parserSteps || [];
   
+  // Title OG meta fallback
+  if (!result.title) {
+    const og = doc.querySelector('meta[property="og:title"]')?.getAttribute("content")?.trim() || 
+              doc.querySelector('meta[name="title"]')?.getAttribute("content")?.trim();
+    if (og) {
+      result.title = og;
+      steps.push("title-og-meta");
+    }
+  }
+  
   // Only enhance if ingredients_raw is missing or too short
   if (!result.ingredients_raw || result.ingredients_raw.length < 100) {
     // Shopify ingredients selectors
@@ -356,12 +366,40 @@ async function augmentFactsAndIngredients(doc: any, html: string, result: Parsed
       if (j.length >= 300) { result.supplement_facts = j; steps.push("facts-legendary-json"); } } catch (err) { console.warn('[parser json]', err); } }
   }
 
+  // Facts section fallback
+  if (!result.supplement_facts || result.supplement_facts.length < 300) {
+    const sels = ['section#nutrition', 'section#supplement-facts', 'section[class*="nutrition"]', 'section[class*="supplement-facts"]', 'div#nutrition', 'div#supplement-facts'];
+    for (const sel of sels) {
+      const el = doc.querySelector(sel);
+      if (el) {
+        const txt = el.textContent.replace(/\s+/g, ' ').trim();
+        if (txt.length >= 300) {
+          result.supplement_facts = txt;
+          steps.push("facts-section-fallback");
+          break;
+        }
+      }
+    }
+  }
+  
+  let tempFacts = result.supplement_facts;
+  
   // 200-char nutrition override
   if (result.supplement_facts && result.supplement_facts.length < 300) {
     const t = result.supplement_facts.toLowerCase();
     if (result.supplement_facts.length >= 200 && /(calories|% dv|mg|g)/.test(t)) {
       steps.push("facts-accepted-200");
     } else { result.supplement_facts = null; }
+  }
+  
+  // Relaxed 200-char gate
+  if (!result.supplement_facts && tempFacts && tempFacts.length >= 200) {
+    const t = tempFacts.toLowerCase();
+    const matches = t.match(/(calories|% dv|mg|g|protein|vitamin|mcg|iu|serving size|daily value)/g) || [];
+    if (matches.length >= 2) {
+      result.supplement_facts = tempFacts;
+      steps.push("facts-relaxed-200");
+    }
   }
 
   // 3 - Image-panel OCR fallback (NOW, Huel, Legendary)
