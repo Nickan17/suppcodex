@@ -1,0 +1,56 @@
+/* Typography Classes */
+.h1 {
+  font-family: 'PlusJakartaSans-Bold';
+  font-size: 32px;
+  line-height: 40px;
+  font-weight: 700;
+}
+
+.h2 {
+  font-family: 'PlusJakartaSans-Bold';
+  font-size: 28px;
+  line-height: 36px;
+  font-weight: 700;
+}
+
+.h3 {
+  font-family: 'PlusJakartaSans-SemiBold';
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+}
+
+.h4 {
+  font-family: 'PlusJakartaSans-SemiBold';
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+}
+
+.h5 {
+  font-family: 'PlusJakartaSans-Medium';
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 500;
+}
+
+.h6 {
+  font-family: 'PlusJakartaSans-Medium';
+  font-size: 16px;
+  line-height: 20px;
+  font-weight: 500;
+}
+
+.body {
+  font-family: 'Inter-Regular';
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 400;
+}
+
+.caption {
+  font-family: 'Inter-Regular';
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+} 

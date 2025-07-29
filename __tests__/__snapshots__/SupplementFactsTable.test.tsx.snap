@@ -1,0 +1,214 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`SupplementFactsTable renders correctly at <320px width 1`] = `
+<View
+  style={
+    [
+      {
+        "borderRadius": 12,
+        "marginVertical": 16,
+        "padding": 16,
+      },
+      {
+        "backgroundColor": "#FAFAFA",
+      },
+    ]
+  }
+>
+  <Text
+    style={
+      [
+        {
+          "fontSize": 18,
+          "fontWeight": "600",
+          "marginBottom": 12,
+        },
+        {
+          "color": "#18181B",
+        },
+      ]
+    }
+  >
+    Supplement Facts
+  </Text>
+  <View
+    style={
+      [
+        {
+          "flexDirection": "row",
+          "flexWrap": "wrap",
+        },
+        false,
+      ]
+    }
+  >
+    <View
+      style={
+        {
+          "padding": 8,
+          "width": "50%",
+        }
+      }
+    >
+      <Text
+        style={
+          [
+            {
+              "fontSize": 14,
+            },
+            {
+              "color": "#18181B",
+            },
+          ]
+        }
+      >
+        Serving Size: 1 Softgel\\nAmount Per Serving: Calories 10\\nTotal Fat 1g\\nVitamin D 25mcg
+      </Text>
+    </View>
+  </View>
+  <View
+    style={
+      {
+        "marginTop": 12,
+      }
+    }
+  >
+    <Text
+      style={
+        [
+          {
+            "fontSize": 14,
+            "fontWeight": "500",
+            "marginBottom": 8,
+          },
+          {
+            "color": "#52525B",
+          },
+        ]
+      }
+    >
+      Certifications
+    </Text>
+    <View
+      style={
+        {
+          "flexDirection": "row",
+          "flexWrap": "wrap",
+          "gap": 8,
+        }
+      }
+    >
+      <View
+        style={
+          [
+            {
+              "alignItems": "center",
+              "borderRadius": 16,
+              "flexDirection": "row",
+              "gap": 6,
+              "paddingHorizontal": 12,
+              "paddingVertical": 6,
+            },
+            {
+              "backgroundColor": "#F4F4F5",
+            },
+          ]
+        }
+      >
+        <RNSVGSvgView
+          align="xMidYMid"
+          bbHeight={16}
+          bbWidth={16}
+          fill="none"
+          focusable={false}
+          height={16}
+          meetOrSlice={0}
+          minX={0}
+          minY={0}
+          stroke="#A1A1AA"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          style={
+            [
+              {
+                "backgroundColor": "transparent",
+                "borderWidth": 0,
+              },
+              {
+                "flex": 0,
+                "height": 16,
+                "width": 16,
+              },
+            ]
+          }
+          vbHeight={24}
+          vbWidth={24}
+          width={16}
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <RNSVGGroup
+            fill={null}
+            propList={
+              [
+                "fill",
+                "stroke",
+                "strokeWidth",
+                "strokeLinecap",
+                "strokeLinejoin",
+              ]
+            }
+            stroke={
+              {
+                "payload": 4288782762,
+                "type": 0,
+              }
+            }
+            strokeLinecap={1}
+            strokeLinejoin={1}
+            strokeWidth={2}
+          >
+            <RNSVGPath
+              d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+              fill={null}
+              propList={
+                [
+                  "fill",
+                  "stroke",
+                  "strokeWidth",
+                  "strokeLinecap",
+                  "strokeLinejoin",
+                ]
+              }
+              stroke={
+                {
+                  "payload": 4288782762,
+                  "type": 0,
+                }
+              }
+              strokeLinecap={1}
+              strokeLinejoin={1}
+              strokeWidth={2}
+            />
+          </RNSVGGroup>
+        </RNSVGSvgView>
+        <Text
+          style={
+            [
+              {
+                "fontSize": 12,
+                "fontWeight": "500",
+              },
+              {
+                "color": "#A1A1AA",
+              },
+            ]
+          }
+        >
+          No certifications
+        </Text>
+      </View>
+    </View>
+  </View>
+</View>
+`;

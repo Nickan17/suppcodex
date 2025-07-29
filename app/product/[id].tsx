@@ -16,6 +16,9 @@ import RubricStatusBar from '@/components/RubricStatusBar';
 import IngredientsList from '@/components/IngredientsList';
 import RemediationChip from '@/components/RemediationChip';
 import ParserStepsModal from '@/components/ParserStepsModal';
+import SupplementFactsTable from '@/components/SupplementFactsTable';
+import SkeletonCard from '@/components/SkeletonCard';
+import { shareProduct } from '@/utils/shareProduct';
 
 interface CategoryScore {
   name: string;
@@ -36,6 +39,7 @@ interface ProductData {
   _meta?: { status: string; remediation?: string; parserSteps?: string[] };
   ingredients?: string[];
   supplement_facts?: string;
+  certifications?: string[];
 }
 
 import { Text } from 'react-native';
@@ -67,7 +71,7 @@ export default function ProductScreen() {
         // Step 1: Check Supabase for existing results
         const { data: existingProduct, error: supabaseError } = await supabase
           .from('products')
-          .select('*')
+          .select('*, ingredients, supplement_facts')
           .or(`id.eq.${id},upc.eq.${id}`)
           .single();
 
@@ -82,6 +86,8 @@ export default function ProductScreen() {
             categories: [], // Supabase doesn't store categories in this schema
             productUrl: existingProduct.productUrl,
             highlights: existingProduct.highlights, // Ensure highlights are passed
+            ingredients: existingProduct.ingredients,
+            supplement_facts: existingProduct.supplement_facts,
           });
           setIsBookmarked(true); // Assume bookmarked if in Supabase
         }
@@ -111,7 +117,25 @@ export default function ProductScreen() {
     }
   };
 
-  if (loading) return <ActivityIndicator style={{ flex:1, justifyContent:'center' }} />;
+  if (loading) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <SkeletonCard height={40} style={{ marginBottom: 24 }} />
+          <View style={styles.productHeader}>
+            <SkeletonCard height={80} width={80} style={{ marginRight: 16 }} />
+            <View style={styles.productInfo}>
+              <SkeletonCard height={16} style={{ marginBottom: 8 }} />
+              <SkeletonCard height={60} />
+            </View>
+          </View>
+          <SkeletonCard height={120} style={{ marginBottom: 16 }} />
+          <SkeletonCard height={80} style={{ marginBottom: 16 }} />
+          <SkeletonCard height={200} />
+        </ScrollView>
+      </View>
+    );
+  }
   if (err) return <Text style={{ color:'red', padding:16 }}>Error: {err}</Text>;
   if (!data) return <Text style={{ padding:16 }}>No data found.</Text>;
 
@@ -132,7 +156,12 @@ export default function ProductScreen() {
           <View style={styles.headerActions}>
             <TouchableOpacity 
               style={[styles.iconButton, { backgroundColor: colors.backgroundSecondary }]}
-              onPress={() => {}}
+              onPress={() => data && shareProduct({
+                name: data.name,
+                brand: data.brand,
+                score: data.overallScore,
+                url: data.productUrl
+              })}
             >
               <Share2 size={20} color={colors.text} />
             </TouchableOpacity>
@@ -206,6 +235,9 @@ export default function ProductScreen() {
             insights={category.insights}
           />
         ))}
+        
+        {data.ingredients && <IngredientsList ingredients={data.ingredients} />}
+        {data.supplement_facts && <SupplementFactsTable facts={data.supplement_facts} certifications={data.certifications} />}
         
         <Button
           title="View on Manufacturer Website"

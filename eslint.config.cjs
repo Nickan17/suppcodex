@@ -6,5 +6,11 @@ module.exports = defineConfig([
   expoConfig,
   {
     ignores: ["dist/*"],
+  },
+  {
+    files: ["**/*.stories.*"],
+    rules: {
+      "import/no-unresolved": "off"
+    }
   }
 ]);

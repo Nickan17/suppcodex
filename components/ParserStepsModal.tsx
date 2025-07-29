@@ -4,6 +4,7 @@ import { useTheme } from '../context/ThemeContext';
 import Colors from '../constants/Colors';
 import Typography from './ui/Typography';
 import { X } from 'lucide-react-native';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface Props {
   visible: boolean;
@@ -16,25 +17,36 @@ const ParserStepsModal = ({ visible, onClose, steps }: Props) => {
   const colors = isDark ? Colors.dark : Colors.light;
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={styles.header}>
-          <Typography variant="h3" weight="semibold">Parser Steps</Typography>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <X size={24} color={colors.text} />
-          </TouchableOpacity>
-        </View>
-        <ScrollView style={styles.content}>
-          {steps.map((step, index) => (
-            <View key={index} style={styles.stepContainer}>
-              <Typography variant="bodySmall" color={colors.textSecondary} style={styles.stepText}>
-                {step}
-              </Typography>
+    <AnimatePresence>
+      {visible && (
+        <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <View style={[styles.container, { backgroundColor: colors.background }]}>
+              <View style={styles.header}>
+                <Typography variant="h3" weight="semibold">Parser Steps</Typography>
+                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                  <X size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={styles.content}>
+                {steps.map((step, index) => (
+                  <View key={index} style={styles.stepContainer}>
+                    <Typography variant="bodySmall" color={colors.textSecondary} style={styles.stepText}>
+                      {step}
+                    </Typography>
+                  </View>
+                ))}
+              </ScrollView>
             </View>
-          ))}
-        </ScrollView>
-      </View>
-    </Modal>
+          </motion.div>
+        </Modal>
+      )}
+    </AnimatePresence>
   );
 };
 

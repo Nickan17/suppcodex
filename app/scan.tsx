@@ -19,6 +19,7 @@ export default function ScanScreen() {
       console.log('Edge result:', JSON.stringify({ id: 123 }, null, 2));
       // router.push(`/product/123`); // Uncomment when implementing navigation
     } catch (err: any) {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Toast.show({ type: 'error', text1: 'Oops', text2: err.message });
     } finally {
       setLoading(false);

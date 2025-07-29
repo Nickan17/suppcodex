@@ -52,6 +52,7 @@
     "expo-symbols": "~0.4.3",
     "expo-system-ui": "~5.0.5",
     "expo-web-browser": "~14.1.5",
+    "framer-motion": "^12.23.11",
     "jsonwebtoken": "^9.0.2",
     "lucide-react-native": "^0.475.0",
     "react": "19.0.0",
@@ -95,9 +96,12 @@
     "jest": "^30.0.4",
     "jest-expo": "^53.0.9",
     "metro-react-native-babel-preset": "^0.77.0",
+    "nativewind": "^4.1.23",
     "source-map-support": "^0.5.21",
+    "tailwindcss": "^4.1.11",
     "ts-jest": "^29.4.0",
     "typescript": "~5.8.3",
+    "webpack": "^5.101.0",
     "whatwg-fetch": "^3.6.20"
   }
 }

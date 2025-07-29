@@ -9,6 +9,7 @@ import StatusChip from './StatusChip';
 import RubricStatusBar from './RubricStatusBar';
 import RemediationChip from './RemediationChip';
 
+
 interface ProductCardProps {
   id: string;
   name: string;
@@ -57,48 +58,48 @@ export default function ProductCard({
 
   return (
     <TouchableOpacity activeOpacity={0.7} onPress={onPress} accessibilityRole="button">
-      <Card variant="elevated" style={styles.card}>
-        <View style={styles.container}>
-          <Image source={{ uri: imageUrl }} style={styles.image} />
-          <View style={styles.content}>
-            <View>
-              <Typography variant="bodySmall" color={colors.textSecondary} style={styles.brand}>
-                {brand}
-              </Typography>
-              <Typography 
-                variant={isSmallScreen ? "bodySmall" : "body"} 
-                weight="semibold" 
-                numberOfLines={2}
-                style={styles.name}
-              >
-                {name}
-              </Typography>
-              <View style={styles.statusRow}>
-                <StatusChip status={_meta?.status as any ?? "manual"} />
-                {_meta?.remediation && <RemediationChip remediation={_meta.remediation} />}
-              </View>
-              <RubricStatusBar parsed={{ title: name, ingredients, facts: supplement_facts }} showIcons={true} />
-            </View>
-            <View style={styles.footer}>
-              <View style={[styles.scoreContainer, { backgroundColor: getScoreBackgroundColor() }]}>
-                <Typography weight="bold" color={getScoreColor()}>
-                  {score}
+        <Card variant="elevated" style={styles.card}>
+          <View style={styles.container}>
+            <Image source={{ uri: imageUrl }} style={styles.image} />
+            <View style={styles.content}>
+              <View>
+                <Typography variant="bodySmall" color={colors.textSecondary} style={styles.brand}>
+                  {brand}
                 </Typography>
+                <Typography 
+                  variant={isSmallScreen ? "bodySmall" : "body"} 
+                  weight="semibold" 
+                  numberOfLines={2}
+                  style={styles.name}
+                >
+                  {name}
+                </Typography>
+                <View style={styles.statusRow}>
+                  <StatusChip status={_meta?.status as any ?? "manual"} />
+                  {_meta?.remediation && <RemediationChip remediation={_meta.remediation} />}
+                </View>
+                <RubricStatusBar parsed={{ title: name, ingredients, facts: supplement_facts }} showIcons={true} />
               </View>
-              {onBookmark && (
-                <TouchableOpacity style={styles.bookmarkButton} onPress={onBookmark}>
-                  <Bookmark
-                    size={20}
-                    color={isBookmarked ? colors.primary : colors.textSecondary}
-                    fill={isBookmarked ? colors.primary : 'transparent'}
-                  />
-                </TouchableOpacity>
-              )}
+              <View style={styles.footer}>
+                <View style={[styles.scoreContainer, { backgroundColor: getScoreBackgroundColor() }]}>
+                  <Typography weight="bold" color={getScoreColor()}>
+                    {score}
+                  </Typography>
+                </View>
+                {onBookmark && (
+                  <TouchableOpacity style={styles.bookmarkButton} onPress={onBookmark}>
+                    <Bookmark
+                      size={20}
+                      color={isBookmarked ? colors.primary : colors.textSecondary}
+                      fill={isBookmarked ? colors.primary : 'transparent'}
+                    />
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
           </View>
-        </View>
-      </Card>
-    </TouchableOpacity>
+        </Card>
+      </TouchableOpacity>
   );
 }
 

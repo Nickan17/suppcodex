@@ -18,6 +18,7 @@ import {
   PlusJakartaSans_700Bold,
 } from '@expo-google-fonts/plus-jakarta-sans';
 import * as SplashScreen from 'expo-splash-screen';
+import '../styles/typography.css';
 
 // Keep splash screen visible while fonts load
 SplashScreen.preventAutoHideAsync();

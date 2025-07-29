@@ -353,6 +353,25 @@ curl -X POST "https://your-project.supabase.co/functions/v1/resolve-upc" \
 - **Issues**: [GitHub Issues](https://github.com/your-repo/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/your-repo/discussions)
 - **Documentation**: This README and inline code comments
+## 🎨 UI & Styling
+
+### Utility Classes
+The project uses Tailwind CSS with custom brand tokens. Available utility classes include:
+- **Colors**: `bg-blue-500`, `text-gray-900`, `border-red-200`
+- **Spacing**: `p-4`, `m-2`, `gap-6` (4px increments)
+- **Z-index**: `z-card`, `z-modal`, `z-tooltip`
+- **Theme-aware**: Colors automatically adapt to light/dark mode
+
+### Theme System
+- `ui/theme.ts`: Light/dark palettes and design tokens
+- `hooks/useTheme.ts`: React hook for theme-aware styling
+- `tailwind.config.js`: Tailwind configuration with brand colors
+
+### Storybook
+Storybook runs on-device in Expo development mode. Launch the app in development mode to see Storybook UI with StatusChip and SupplementFactsTable stories.
+
+**Note:** Expo/React Native Storybook runs only in-app, not in browser.
+
 ## 🚫 Scrape Policy
 
 Some brands (e.g., Optimum Nutrition) aggressively block all automated scraping. These are marked `blocked_by_site` (HTTP 451), excluded from automated E2E success rates, and handled manually or via partner APIs. We auto-skip blocked domains in nightly runs and surface a `_meta.remediation` for product/ops triage.

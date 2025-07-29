@@ -7,6 +7,7 @@ import Colors from '@/constants/Colors';
 import Typography from '@/components/ui/Typography';
 import Button from '@/components/ui/Button';
 import Toast from 'react-native-toast-message';
+import SkeletonCard from '@/components/SkeletonCard';
 
 import * as Haptics from 'expo-haptics';
 
@@ -49,6 +50,7 @@ export default function PasteScreen() {
       // 3. Navigate to product page
       router.push(`/product/${scoreData.id}`);
     } catch (err: any) {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Toast.show({ type: 'error', text1: 'Oops', text2: err.message });
     } finally {
       setLoading(false);
@@ -71,7 +73,8 @@ export default function PasteScreen() {
       </View>
       {loading ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" />
+          <SkeletonCard height={200} style={{ marginBottom: 16 }} />
+          <SkeletonCard height={60} />
         </View>
       ) : (
         <Button title="Submit" onPress={handleSubmit} isLoading={loading} fullWidth />
