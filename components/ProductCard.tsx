@@ -5,6 +5,9 @@ import Colors from '@/constants/Colors';
 import Card from './ui/Card';
 import Typography from './ui/Typography';
 import { Bookmark } from 'lucide-react-native';
+import StatusChip from './StatusChip';
+import RubricStatusBar from './RubricStatusBar';
+import RemediationChip from './RemediationChip';
 
 interface ProductCardProps {
   id: string;
@@ -15,6 +18,9 @@ interface ProductCardProps {
   isBookmarked?: boolean;
   onPress: () => void;
   onBookmark?: () => void;
+  _meta?: { status: string; remediation?: string };
+  ingredients?: string;
+  supplement_facts?: string;
 }
 
 export default function ProductCard({
@@ -26,6 +32,9 @@ export default function ProductCard({
   isBookmarked = false,
   onPress,
   onBookmark,
+  _meta,
+  ingredients,
+  supplement_facts,
 }: ProductCardProps) {
   const { isDark } = useTheme();
   const colors = isDark ? Colors.dark : Colors.light;
@@ -64,6 +73,11 @@ export default function ProductCard({
               >
                 {name}
               </Typography>
+              <View style={styles.statusRow}>
+                <StatusChip status={_meta?.status as any ?? "manual"} />
+                {_meta?.remediation && <RemediationChip remediation={_meta.remediation} />}
+              </View>
+              <RubricStatusBar parsed={{ title: name, ingredients, facts: supplement_facts }} showIcons={true} />
             </View>
             <View style={styles.footer}>
               <View style={[styles.scoreContainer, { backgroundColor: getScoreBackgroundColor() }]}>
@@ -126,5 +140,10 @@ const styles = StyleSheet.create({
   },
   bookmarkButton: {
     padding: 4,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
   },
 });

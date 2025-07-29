@@ -1,0 +1,7 @@
+🚀 Testing Edge Function at: https://uaqcehoocecvihubnbhp.supabase.co/functions/v1/firecrawl-extract
+
+✅ Optimum blocklist OK (451)
+
+📋 Testing 10 product pages (excluding blocked domains)...
+
+[1/10] Testing: https://www.cellucor.com/products/c4-original

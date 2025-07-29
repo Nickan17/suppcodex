@@ -8,9 +8,14 @@ import Typography from '@/components/ui/Typography';
 import Button from '@/components/ui/Button';
 import ScoreCard from '@/components/ScoreCard';
 import CategoryScoreCard from '@/components/CategoryScoreCard';
-import { ArrowLeft, Bookmark, Share2, ExternalLink } from 'lucide-react-native';
+import { ArrowLeft, Bookmark, Share2, ExternalLink, Flag } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import Constants from 'expo-constants';
+import StatusChip from '@/components/StatusChip';
+import RubricStatusBar from '@/components/RubricStatusBar';
+import IngredientsList from '@/components/IngredientsList';
+import RemediationChip from '@/components/RemediationChip';
+import ParserStepsModal from '@/components/ParserStepsModal';
 
 interface CategoryScore {
   name: string;
@@ -28,6 +33,9 @@ interface ProductData {
   categories: CategoryScore[];
   productUrl?: string;
   highlights: string[]; // Add highlights to the interface
+  _meta?: { status: string; remediation?: string; parserSteps?: string[] };
+  ingredients?: string[];
+  supplement_facts?: string;
 }
 
 import { Text } from 'react-native';
@@ -41,17 +49,19 @@ export default function ProductScreen() {
   const [data, setData] = useState<ProductData | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [showParserSteps, setShowParserSteps] = useState(false);
+  const [isManualReview, setIsManualReview] = useState(false);
 
   useEffect(() => {
     const fetchProductData = async () => {
       if (!id) {
-        setError('Product ID (UPC) is missing.');
+        setErr('Product ID (UPC) is missing.');
         setLoading(false);
         return;
       }
 
       setLoading(true);
-      setError(null);
+              setErr(null);
 
       try {
         // Step 1: Check Supabase for existing results
@@ -91,6 +101,16 @@ export default function ProductScreen() {
     // TODO: Implement actual bookmarking logic with Supabase
   };
 
+  const toggleManualReview = async () => {
+    setIsManualReview(!isManualReview);
+    try {
+      const response = await fetch(`/products/${id}/manual_review`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+      console.log('Manual review toggle:', response.ok ? 'success' : 'failed');
+    } catch (error) {
+      console.error('Manual review toggle error:', error);
+    }
+  };
+
   if (loading) return <ActivityIndicator style={{ flex:1, justifyContent:'center' }} />;
   if (err) return <Text style={{ color:'red', padding:16 }}>Error: {err}</Text>;
   if (!data) return <Text style={{ padding:16 }}>No data found.</Text>;
@@ -119,6 +139,17 @@ export default function ProductScreen() {
             
             <TouchableOpacity 
               style={[styles.iconButton, { backgroundColor: colors.backgroundSecondary }]}
+              onPress={toggleManualReview}
+            >
+              <Flag
+                size={20}
+                color={isManualReview ? colors.badScore : colors.text}
+                fill={isManualReview ? colors.badScore : 'transparent'}
+              />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.iconButton, { backgroundColor: colors.backgroundSecondary }]}
               onPress={toggleBookmark}
             >
               <Bookmark
@@ -131,27 +162,43 @@ export default function ProductScreen() {
         </View>
         
         <View style={styles.productHeader}>
-          <Image source={{ uri: product.imageUrl }} style={styles.productImage} />
+          <Image source={{ uri: data.imageUrl }} style={styles.productImage} />
           
           <View style={styles.productInfo}>
             <Typography variant="bodySmall" color={colors.textSecondary} style={styles.brand}>
-              {product.brand}
+              {data.brand}
             </Typography>
-            
+            <View style={styles.statusRow}>
+              <TouchableOpacity onPress={() => data._meta?.parserSteps && setShowParserSteps(true)}>
+                <StatusChip status={data._meta?.status as any ?? "manual"} />
+              </TouchableOpacity>
+              {data._meta?.remediation && <RemediationChip remediation={data._meta.remediation} />}
+            </View>
             <Typography variant="h3" weight="semibold" style={styles.productName}>
-              {product.name}
+              {data.name}
             </Typography>
           </View>
         </View>
         
         {/* Main Score Card */}
-        <ScoreCard score={product.overallScore} pros={product.highlights?.slice(0,3) || []} cons={[]} />
+        <ScoreCard score={data.overallScore} pros={data.highlights?.slice(0,3) || []} cons={[]} />
+        
+        {/* Parser failure CTA */}
+        {data._meta?.status === 'parser_fail' && (
+          <Button
+            title="Why did parsing fail?"
+            variant="ghost"
+            size="sm"
+            onPress={() => data._meta?.parserSteps && setShowParserSteps(true)}
+            style={{ marginBottom: 16 }}
+          />
+        )}
         
         <Typography variant="h3" weight="semibold" style={styles.sectionTitle}>
           Detailed Analysis
         </Typography>
         
-        {product.categories.map((category, index) => (
+        {data.categories.map((category: any, index: number) => (
           <CategoryScoreCard
             key={index}
             category={category.name}
@@ -166,8 +213,8 @@ export default function ProductScreen() {
           fullWidth
           icon={<ExternalLink size={18} color={colors.primary} />}
           style={styles.websiteButton}
-          onPress={() => product.productUrl && Linking.openURL(product.productUrl)}
-          disabled={!product.productUrl}
+          onPress={() => data.productUrl && Linking.openURL(data.productUrl)}
+          disabled={!data.productUrl}
         />
         
         <Button
@@ -175,9 +222,16 @@ export default function ProductScreen() {
           variant="secondary"
           fullWidth
           style={styles.compareButton}
-          onPress={() => router.push({ pathname: '/new-comparison', params: { product: product.upc } })}
+          onPress={() => router.push({ pathname: '/new-comparison', params: { product: data.upc } })}
         />
       </ScrollView>
+      
+      {/* Parser Steps Modal */}
+      <ParserStepsModal
+        visible={showParserSteps}
+        onClose={() => setShowParserSteps(false)}
+        steps={data._meta?.parserSteps || []}
+      />
       
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </View>
@@ -252,5 +306,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
   },
 });

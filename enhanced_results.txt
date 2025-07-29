@@ -1,0 +1,61 @@
+🚀 Testing Edge Function at: https://uaqcehoocecvihubnbhp.supabase.co/functions/v1/firecrawl-extract
+
+📋 Testing 10 product pages...
+
+[1/10] Testing: https://magnumsupps.com/en-us/products/quattro?variant=46056179892527
+   Source: scrapfly | Title: ✅ | Ingredients: ✅ | Supp Facts: ✅
+[2/10] Testing: https://us.myprotein.com/sports-nutrition/impact-whey-protein/10530943.html
+   Source: scrapfly | Title: ✅ | Ingredients: ✅ | Supp Facts: ✅
+[3/10] Testing: https://optimumnutrition.com/en-us/product/gold-standard-100-whey#2753
+   Source: scrapfly | Title: ✅ | Ingredients: ❌ | Supp Facts: ❌
+[4/10] Testing: https://cellucor.com/products/c4-original
+   Source: scrapfly | Title: ❌ | Ingredients: ✅ | Supp Facts: ✅
+[5/10] Testing: https://www.nowfoods.com/supplements/omega-3-1000-mg-fish-oil
+   Source: scrapfly | Title: ✅ | Ingredients: ✅ | Supp Facts: ❌
+[6/10] Testing: https://www.naturemade.com/products/vitamin-d3-2000-iu
+   Source: scrapfly | Title: ✅ | Ingredients: ✅ | Supp Facts: ❌
+[7/10] Testing: https://gardenoflife.com/products/dr-formulated-probiotics-once-daily-women-s
+   Source: scrapfly | Title: ✅ | Ingredients: ❌ | Supp Facts: ❌
+[8/10] Testing: https://www.gnc.com/creatine/350522.html
+   Source: scrapfly | Title: ✅ | Ingredients: ❌ | Supp Facts: ❌
+[9/10] Testing: https://us.huel.com/products/huel-black-edition
+   Source: none | Title: ❌ | Ingredients: ❌ | Supp Facts: ❌
+[10/10] Testing: https://www.legendaryfoods.com/products/tasty-pastry-blueberry-flavor
+   Source: scrapfly | Title: ❌ | Ingredients: ❌ | Supp Facts: ❌
+
+📊 RESULTS SUMMARY
+==================
+
+| # | URL | Source | Title | Ingredients | Supp Facts | Blend Warning | Protein g | Notes |
+|---|-----|--------|-------|-------------|------------|---------------|-----------|-------|
+| 1 | magnumsupps.com/en-us/products/quattro?v... | scrapfly | ✅ | ✅ | ✅ | ✅ | ❌ | Full extraction success |
+| 2 | us.myprotein.com/sports-nutrition/impact... | scrapfly | ✅ | ✅ | ✅ | ✅ | ❌ | Full extraction success |
+| 3 | optimumnutrition.com/en-us/product/gold-... | scrapfly | ✅ | ❌ | ❌ | ✅ | ❌ | no ingredients found; no supplement facts; HTML returned but parser missed content |
+| 4 | cellucor.com/products/c4-original... | scrapfly | ❌ | ✅ | ✅ | ✅ | ❌ | Missing title;  |
+| 5 | www.nowfoods.com/supplements/omega-3-100... | scrapfly | ✅ | ✅ | ❌ | ✅ | ❌ | no supplement facts; HTML returned but parser missed content |
+| 6 | www.naturemade.com/products/vitamin-d3-2... | scrapfly | ✅ | ✅ | ❌ | ✅ | ❌ | no supplement facts; HTML returned but parser missed content |
+| 7 | gardenoflife.com/products/dr-formulated-... | scrapfly | ✅ | ❌ | ❌ | ✅ | ❌ | no ingredients found; no supplement facts; HTML returned but parser missed content |
+| 8 | www.gnc.com/creatine/350522.html | scrapfly | ✅ | ❌ | ❌ | ✅ | ❌ | no ingredients found; no supplement facts; HTML returned but parser missed content |
+| 9 | us.huel.com/products/huel-black-edition... | none | ❌ | ❌ | ❌ | ✅ | ❌ | API Error: No provider returned HTML |
+| 10 | www.legendaryfoods.com/products/tasty-pa... | scrapfly | ❌ | ❌ | ❌ | ✅ | ❌ | Missing title; no ingredients found; no supplement facts; HTML returned but parser missed content |
+
+## 📈 EXTRACTION SUMMARY
+
+**Overall Success:** 2 / 10 URLs fully extracted
+
+**Component Success Rates:**
+- Titles: 7 / 10 (70%)
+- Ingredients: 5 / 10 (50%)
+- Supplement Facts: 3 / 10 (30%)
+
+**Failure Pattern Analysis:**
+- Parser/DOM extraction issues: 6
+- Network/API errors: 1
+- OCR/Image extraction failures: 0
+
+**Next Tweaks Recommended:**
+1. 🔧 Enhance DOM selectors for missing ingredient extraction
+3. 📋 Boost OCR coverage for supplement facts vs basic ingredients
+4. 🌐 Consider fallback extraction strategies for complex sites
+
+✨ E2E validation complete! Use this data to prioritize parser improvements.
