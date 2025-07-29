@@ -19,6 +19,12 @@ const MOCK_SAVED_PRODUCTS = [
     imageUrl: 'https://images.pexels.com/photos/6941883/pexels-photo-6941883.jpeg',
     score: 85,
     date: '2 days ago',
+    _meta: { 
+      status: 'success',
+      remediation: 'none'
+    },
+    ingredients: 'Fish Oil Concentrate 1200mg (EPA 360mg, DHA 240mg), Gelatin, Glycerin, Water, Natural Lemon Flavor',
+    supplement_facts: 'Serving Size: 1 Softgel, Servings Per Container: 90, Amount Per Serving: Fish Oil Concentrate 1200mg (EPA 360mg, DHA 240mg), Other Ingredients: Gelatin, Glycerin, Water, Natural Lemon Flavor',
   },
   {
     id: '3',
@@ -27,6 +33,12 @@ const MOCK_SAVED_PRODUCTS = [
     imageUrl: 'https://images.pexels.com/photos/6692132/pexels-photo-6692132.jpeg',
     score: 92,
     date: '1 week ago',
+    _meta: { 
+      status: 'success',
+      remediation: 'none'
+    },
+    ingredients: 'Vitamin D3 (as Cholecalciferol) 5000 IU, Olive Oil, Gelatin, Glycerin, Purified Water',
+    supplement_facts: 'Serving Size: 1 Softgel, Servings Per Container: 360, Amount Per Serving: Vitamin D3 (as Cholecalciferol) 5000 IU (125 mcg) 625% DV, Other Ingredients: Olive Oil, Gelatin, Glycerin, Purified Water',
   },
 ];
 
@@ -85,6 +97,9 @@ export default function SavedScreen() {
                   isBookmarked={true}
                   onPress={() => router.push(`/product/${product.id}`)}
                   onBookmark={() => toggleBookmark(product.id)}
+                  _meta={product._meta}
+                  ingredients={product.ingredients}
+                  supplement_facts={product.supplement_facts}
                 />
               ))}
             </>

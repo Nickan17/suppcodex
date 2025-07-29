@@ -115,6 +115,9 @@ export default function SearchScreen() {
               isBookmarked={bookmarkedProducts.includes(product.id)}
               onPress={() => router.push(`/product/${product.id}`)}
               onBookmark={() => toggleBookmark(product.id)}
+              _meta={product._meta}
+              ingredients={product.ingredients}
+              supplement_facts={product.supplement_facts}
             />
           ))}
           

@@ -5,6 +5,9 @@ import Colors from '@/constants/Colors';
 import Card from './ui/Card';
 import Typography from './ui/Typography';
 import Button from './ui/Button';
+import StatusChip from './StatusChip';
+import RemediationChip from './RemediationChip';
+import RubricStatusBar from './RubricStatusBar';
 
 interface CompareCardProps {
   product1: {
@@ -12,12 +15,18 @@ interface CompareCardProps {
     brand: string;
     imageUrl: string;
     score: number;
+    _meta?: { status: string; remediation?: string };
+    ingredients?: string;
+    supplement_facts?: string;
   };
   product2: {
     name: string;
     brand: string;
     imageUrl: string;
     score: number;
+    _meta?: { status: string; remediation?: string };
+    ingredients?: string;
+    supplement_facts?: string;
   };
   onViewDetails: () => void;
 }
@@ -57,6 +66,18 @@ export default function CompareCard({ product1, product2, onViewDetails }: Compa
       <Typography variant="body" weight="semibold" numberOfLines={2} style={styles.name}>
         {product.name}
       </Typography>
+      <View style={styles.statusRow}>
+        {product._meta?.status && <StatusChip status={product._meta.status as any} />}
+        {product._meta?.remediation && <RemediationChip remediation={product._meta.remediation} />}
+      </View>
+      <RubricStatusBar 
+        parsed={{ 
+          title: product.name, 
+          ingredients: product.ingredients, 
+          facts: product.supplement_facts 
+        }} 
+        showIcons={true}
+      />
       {isWinner && (
         <View style={[styles.winnerBadge, { backgroundColor: colors.goodScoreBg }]}>
           <Typography variant="bodySmall" weight="semibold" color={colors.goodScore}>
@@ -144,5 +165,10 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: 8,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
   },
 });
