@@ -1,7 +1,7 @@
 import 'dotenv/config';
 
-console.log('EXPO_PUBLIC_SUPABASE_URL:', process.env.EXPO_PUBLIC_SUPABASE_URL);
-console.log('EXPO_PUBLIC_SUPABASE_ANON_KEY:', process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY);
+// SECURITY: Never log environment variables or secrets to console
+// This prevents accidental exposure of sensitive data in logs
 
 interface ExpoConfig {
   expo: {

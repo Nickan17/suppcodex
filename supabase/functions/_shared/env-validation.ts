@@ -11,6 +11,7 @@ interface EnvironmentConfig {
   SUPABASE_URL: string;
   SUPABASE_ANON_KEY: string;
   SUPABASE_SERVICE_ROLE_KEY: string;
+  SUPABASE_EDGE_FUNCTION_KEY: string;
 
   // External API Keys
   OPENROUTER_API_KEY: string;
@@ -32,6 +33,21 @@ interface ValidationResult {
   config?: EnvironmentConfig;
 }
 
+// Centralized environment access with fallbacks
+const SERVICE_ROLE =
+  Deno.env.get('SUPABASE_EDGE_FUNCTION_KEY') ??
+  Deno.env.get('EDGE_FUNCTION_SERVICE_ROLE_KEY') ??
+  Deno.env.get('SERVICE_ROLE_KEY') ??
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ??
+  Deno.env.get('EDGE_FUNCTION_KEY') ??
+  Deno.env.get('SERVICE_KEY');
+
+if (!SERVICE_ROLE) {
+  throw new Error("Missing required environment variable: SUPABASE_EDGE_FUNCTION_KEY");
+}
+
+export const ENV = { SERVICE_ROLE };
+
 /**
  * Validates that required environment variables are present and properly formatted
  */
@@ -43,7 +59,6 @@ export function validateEnvironment(): ValidationResult {
   const requiredVars = [
     "SUPABASE_URL",
     "SUPABASE_ANON_KEY",
-    "SUPABASE_SERVICE_ROLE_KEY",
     "OPENROUTER_API_KEY",
     "SCRAPFLY_API_KEY",
   ];
@@ -107,7 +122,8 @@ export function validateEnvironment(): ValidationResult {
     const config: EnvironmentConfig = {
       SUPABASE_URL: Deno.env.get("SUPABASE_URL")!,
       SUPABASE_ANON_KEY: Deno.env.get("SUPABASE_ANON_KEY")!,
-      SUPABASE_SERVICE_ROLE_KEY: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      SUPABASE_SERVICE_ROLE_KEY: SERVICE_ROLE,
+      SUPABASE_EDGE_FUNCTION_KEY: SERVICE_ROLE,
       OPENROUTER_API_KEY: Deno.env.get("OPENROUTER_API_KEY")!,
       SCRAPFLY_API_KEY: Deno.env.get("SCRAPFLY_API_KEY")!,
       FIRECRAWL_API_KEY: Deno.env.get("FIRECRAWL_API_KEY"),
@@ -177,10 +193,9 @@ export function createInternalHeaders(): Record<string, string> {
     "Content-Type": "application/json",
   };
 
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (serviceKey) {
-    headers["authorization"] = `Bearer ${serviceKey}`;
-    headers["apikey"] = serviceKey;
+  if (SERVICE_ROLE) {
+    headers["authorization"] = `Bearer ${SERVICE_ROLE}`;
+    headers["apikey"] = SERVICE_ROLE;
   }
 
   return headers;

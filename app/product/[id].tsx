@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Image, TouchableOpacity, Platform, ActivityIndicator, Linking } from 'react-native';
+import { View, StyleSheet, ScrollView, Image, TouchableOpacity, Platform, Linking, Text } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useTheme } from '@/context/ThemeContext';
@@ -10,15 +10,14 @@ import ScoreCard from '@/components/ScoreCard';
 import CategoryScoreCard from '@/components/CategoryScoreCard';
 import { ArrowLeft, Bookmark, Share2, ExternalLink, Flag } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
-import Constants from 'expo-constants';
 import StatusChip from '@/components/StatusChip';
-import RubricStatusBar from '@/components/RubricStatusBar';
 import IngredientsList from '@/components/IngredientsList';
 import RemediationChip from '@/components/RemediationChip';
 import ParserStepsModal from '@/components/ParserStepsModal';
 import SupplementFactsTable from '@/components/SupplementFactsTable';
 import SkeletonCard from '@/components/SkeletonCard';
 import { shareProduct } from '@/utils/shareProduct';
+
 
 interface CategoryScore {
   name: string;
@@ -42,11 +41,10 @@ interface ProductData {
   certifications?: string[];
 }
 
-import { Text } from 'react-native';
-
 export default function ProductScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, score } = useLocalSearchParams<{ id: string; score?: string }>();
   console.log('Product screen id param:', id);
+  console.log('Product screen score param:', score);
   const { isDark } = useTheme();
   const colors = isDark ? Colors.dark : Colors.light;
   const [isBookmarked, setIsBookmarked] = useState(false);
@@ -55,6 +53,7 @@ export default function ProductScreen() {
   const [err, setErr] = useState<string | null>(null);
   const [showParserSteps, setShowParserSteps] = useState(false);
   const [isManualReview, setIsManualReview] = useState(false);
+  const [scoreData, setScoreData] = useState<any>(null);
 
   useEffect(() => {
     const fetchProductData = async () => {
@@ -65,7 +64,18 @@ export default function ProductScreen() {
       }
 
       setLoading(true);
-              setErr(null);
+      setErr(null);
+
+      // Parse score data from URL if present
+      if (score) {
+        try {
+          const parsedScore = JSON.parse(decodeURIComponent(score));
+          setScoreData(parsedScore);
+          console.log('Parsed score data:', parsedScore);
+        } catch (err) {
+          console.error('Error parsing score data:', err);
+        }
+      }
 
       try {
         // Step 1: Check Supabase for existing results
@@ -100,7 +110,7 @@ export default function ProductScreen() {
     };
 
     fetchProductData();
-  }, [id]);
+  }, [id, score]);
 
   const toggleBookmark = () => {
     setIsBookmarked(!isBookmarked);
@@ -208,6 +218,32 @@ export default function ProductScreen() {
             </Typography>
           </View>
         </View>
+        
+        {/* AI Score Display */}
+        {scoreData && (
+          <View style={[styles.scoreContainer, { backgroundColor: colors.backgroundSecondary }]}>
+            <View style={styles.scoreHeader}>
+              <Typography variant="h4" weight="semibold">AI Score</Typography>
+              <View style={[styles.scoreBadge, { backgroundColor: colors.primary }]}>
+                <Typography variant="body" weight="bold" color="white">
+                  {scoreData.final_score || 'N/A'} / 100
+                </Typography>
+              </View>
+            </View>
+            {scoreData.highlights && scoreData.highlights.length > 0 && (
+              <View style={styles.scoreDetails}>
+                <Typography variant="bodySmall" color={colors.textSecondary}>
+                  Key Insights:
+                </Typography>
+                {scoreData.highlights.slice(0, 3).map((highlight: string, index: number) => (
+                  <Typography key={index} variant="bodySmall" style={styles.insight}>
+                    • {highlight}
+                  </Typography>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
         
         {/* Main Score Card */}
         <ScoreCard score={data.overallScore} pros={data.highlights?.slice(0,3) || []} cons={[]} />
@@ -343,5 +379,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     marginBottom: 8,
+  },
+  scoreContainer: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  scoreHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  scoreBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  scoreDetails: {
+    marginTop: 8,
+  },
+  insight: {
+    marginTop: 4,
+    marginLeft: 8,
   },
 });

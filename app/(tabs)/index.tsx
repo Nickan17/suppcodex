@@ -1,4 +1,3 @@
-import * as Clipboard from 'expo-clipboard';
 import 'react-native-get-random-values'; // polyfill for crypto.randomUUID on older Expo
 import React, { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
@@ -15,7 +14,6 @@ import { Camera, Link2, FileText, ChevronRight, ScanLine, History } from 'lucide
 import * as ImagePicker from 'expo-image-picker';
 import { BarCodeScanner } from 'expo-barcode-scanner';
 import Constants from 'expo-constants';
-import { supabase } from '@/lib/supabase';
 
 export default function HomeScreen() {
   const { isDark } = useTheme();
@@ -23,19 +21,11 @@ export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showScanner, setShowScanner] = useState(false);
   const [, setHasPermission] = useState<boolean | null>(null);
-  const [recentScans, setRecentScans] = useState<any[]>([]);
+  const [recentScans] = useState<any[]>([]);
 
   // This would be populated from real data in a full implementation
   const hasRecentScans = recentScans.length > 0;
   
-  const requestCameraPermission = async () => {
-    const { status } = await BarCodeScanner.requestPermissionsAsync();
-    setHasPermission(status === 'granted');
-    if (status === 'granted') {
-      setShowScanner(true);
-    }
-  };
-
   const handleBarCodeScanned = ({ type, data }: { type: string, data: string }) => {
     setShowScanner(false);
     // In a real app, this would query the API for the product

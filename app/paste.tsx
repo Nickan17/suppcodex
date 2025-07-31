@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TextInput, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, TextInput } from 'react-native';
 import { router } from 'expo-router';
-import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/context/ThemeContext';
 import Colors from '@/constants/Colors';
 import Typography from '@/components/ui/Typography';
 import Button from '@/components/ui/Button';
 import Toast from 'react-native-toast-message';
 import SkeletonCard from '@/components/SkeletonCard';
+import { chainExtractToScore } from '@/utils/api';
 
 import * as Haptics from 'expo-haptics';
 
@@ -29,26 +29,18 @@ export default function PasteScreen() {
     }
     setLoading(true);
     try {
-      // 1. Call firecrawl-extract
-      const { data: extractData, error: extractError } = await supabase.functions.invoke('firecrawl-extract', {
-        body: { url },
-      });
-      if (extractError) {
-        throw extractError;
+      const result = await chainExtractToScore(url);
+      if (!result.ok) {
+        Toast.show({ type: 'error', text1: 'Processing Failed', text2: result.message });
+        return;
       }
-      // 2. Call score-supplement
-      const { data: scoreData, error: scoreError } = await supabase.functions.invoke('score-supplement', {
-        body: { markdown: extractData.markdown },
-      });
-      if (scoreError) {
-        throw scoreError;
-      }
+      
       // Haptic feedback on success
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       // Log Edge Function response
-      console.log('Edge result:', JSON.stringify(scoreData, null, 2));
-      // 3. Navigate to product page
-      router.push(`/product/${scoreData.id}`);
+      console.log('Edge result:', JSON.stringify(result.data, null, 2));
+      // Navigate to product page with score data
+      router.push(`/product/${result.data.id}?score=${encodeURIComponent(JSON.stringify(result.data.score))}`);
     } catch (err: any) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Toast.show({ type: 'error', text1: 'Oops', text2: err.message });

@@ -46,9 +46,9 @@ function expandToFull(
       Object.entries(map).map(([k, v]) => [k, { score: v, reasons: [], weight: weights[k as keyof typeof map] * 100 }])
     ) as any,
     overall_assessment: {
-      strengths: r.highlights.slice(0, 1),
+      strengths: r.highlights?.slice(0, 1) ?? [],
       weaknesses: [],
-      recommendations: r.highlights.slice(1),
+      recommendations: r.highlights?.slice(1) ?? [],
       safety_rating: "—",
       efficacy_rating: "—",
       transparency_rating: "—",
@@ -125,7 +125,7 @@ const corsHeaders = {
   'Access-Control-Max-Age': '86400',
 };
 
-serve(async (req) => {
+const handler = async (req: any) => {
   // Handle CORS pre-flight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, {
@@ -142,8 +142,16 @@ serve(async (req) => {
   }
 
   try {
-    const { data, scraped }: { data: any; scraped: string | null } = await req.json();
-    
+    const body = await req.json();
+    const data = body?.data ?? null;
+    const scraped = body?.scraped ?? null;
+
+    if (!data || !data.parsed) {
+      return new Response(JSON.stringify({ error: "Invalid payload: data.parsed is required" }), { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    }
+
+    const parsed = data.parsed;
+
     // Robust product data extraction with HTML fallback
     function safeExtractProduct(raw: any) {
       // 1️⃣ try structured Firecrawl results
@@ -166,17 +174,25 @@ serve(async (req) => {
       return { ...structured, html };  // may contain html string
     }
 
-    const parsed = data.parsed;
-    if (!parsed) {
-        return new Response(JSON.stringify({ error: "Request body must contain a 'parsed' object from firecrawl-extract" }), { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } });
-    }
-
     const { ingredients_raw, numeric_doses_present, title } = parsed;
 
     if (!title) {
-      console.error("title missing in parsed data");
       return new Response(
-        JSON.stringify({ error: "Parse error – title missing" }),
+        JSON.stringify({ error: "Invalid payload: data.parsed.title is required" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    if (!ingredients_raw) {
+      return new Response(
+        JSON.stringify({ error: "Invalid payload: data.parsed.ingredients_raw is required" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    if (numeric_doses_present === undefined) {
+      return new Response(
+        JSON.stringify({ error: "Invalid payload: data.parsed.numeric_doses_present is required" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
@@ -205,9 +221,18 @@ If numeric_doses_present is false, Transparency ≤ 4 and Clinical Doses ≤ 3 u
       ENV_CONFIG.SUPABASE_ANON_KEY,
     );
     await supabase.from("scored_products").upsert([full], { onConflict: "product_id" });
-    return new Response(JSON.stringify(full), { headers: { "Content-Type": "application/json", ...corsHeaders } });
+    
+    // Return AI JSON response with metadata
+    return new Response(JSON.stringify({ 
+      data: simple, 
+      _meta: { model: 'openrouter', ts: Date.now() } 
+    }), { headers: { "Content-Type": "application/json", ...corsHeaders } });
   } catch (err) {
     console.error(err);
     return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
   }
-});
+};
+
+serve(handler);
+
+export { handler };

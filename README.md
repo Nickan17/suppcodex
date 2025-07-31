@@ -104,8 +104,24 @@ npm run logs
 
 ### Required (Core Functionality)
 - **Supabase**: [Dashboard](https://app.supabase.com/) → Project Settings → API
+  - `SUPABASE_URL`: Your project URL
+  - `SUPABASE_ANON_KEY`: Public anon key
+  - `SUPABASE_SERVICE_ROLE_KEY`: Service role key for admin operations
 - **OpenRouter**: [Platform](https://openrouter.ai/) → API Keys (for LLM scoring)
 - **Scrapfly**: [Dashboard](https://scrapfly.io/) → API Keys (web scraping)
+
+### Edge Function Secrets (Required)
+⚠️ **Important**: Service role key must be stored as a **Function Secret**, not an environment variable.
+
+```bash
+# Set the service role key as a function secret (CLI blocks SUPABASE_ prefix)
+supabase secrets set EDGE_FUNCTION_SERVICE_ROLE_KEY="your-service-role-key"
+
+# Verify it's set
+supabase secrets list | grep EDGE_FUNCTION_SERVICE_ROLE_KEY
+```
+
+**Why Function Secrets?**: The Supabase CLI blocks environment variables starting with `SUPABASE_` to prevent accidental exposure. Service role keys should never be exposed to client-side code (Expo/web).
 
 ### Optional (Enhanced Features)
 - **Firecrawl**: [Platform](https://firecrawl.dev/) → API Keys (primary web scraping)
