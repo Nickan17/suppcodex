@@ -506,6 +506,24 @@ async function handler(req: Request): Promise<Response> {
   /* OCR + parse */
   const ocr = await lightOCR(html, url, env.OCRSPACE_API_KEY);
   const parsed = await parseProductPage(html, url, ocr, env);
+
+  // Debug logging
+  console.log('parsed:', parsed);
+
+  // Strict validation: ensure at least one meaningful field is present
+  const hasTitle = parsed.title && parsed.title.trim().length > 0;
+  const hasIngredients = parsed.ingredients_raw && parsed.ingredients_raw.length >= 100;
+  const hasSupplementFacts = parsed.supplement_facts && parsed.supplement_facts.length >= 300;
+
+  if (!hasTitle && !hasIngredients && !hasSupplementFacts) {
+    return json({
+      error: "No parsed data found from source",
+      _meta: {
+        status: "parser_fail",
+        remediation: "site_specific_parser"
+      }
+    }, 422);
+  }
   
   // Map provider names to expected source names for compatibility
   const sourceMap: Record<string, string> = {

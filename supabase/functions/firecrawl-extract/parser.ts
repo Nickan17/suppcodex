@@ -15,6 +15,8 @@ export interface ParsedProduct {
   total_protein_g?: number | null;
   _meta?: {
     parserSteps?: string[];
+    status?: string;
+    remediation?: string;
   };
 }
 
@@ -45,7 +47,7 @@ async function lightOCR(
   const doc = new DOMParser().parseFromString(html, "text/html");
   if (!doc) return null;
 
-  const imgs = [...doc.querySelectorAll("img")] as Element[];
+  const imgs = [...doc.querySelectorAll("img")];
   if (!imgs.length) return null;
 
   // Rank images by likelihood of containing supplement panel
@@ -484,6 +486,9 @@ export async function parseProductPage(
   // Augment with enhanced extraction
   await augmentFactsAndIngredients(doc, html, result, url, env);
   
+  // --- Generic Shopify fallback parser ---
+  await parseShopifyProductPage(doc, result);
+  
   // --- Legendary Foods nutrition div ---
   if (!result.supplement_facts) {
     const lf = doc.querySelector("div#nutritionFacts")?.textContent;
@@ -778,4 +783,84 @@ function detectNumericDoses(ingredientsText: string, ocrText: string): boolean {
   return dosePattern.test(combined);
 }
 
-// OCR will be handled by the main function in index.ts 
+/** Generic Shopify fallback parser */
+async function parseShopifyProductPage(doc: any, result: ParsedProduct): Promise<void> {
+  const steps = result._meta?.parserSteps || [];
+
+  // Detect Shopify via meta generator, Shopify script, or shopify-section CSS class
+  const isShopify = !!(
+    doc.querySelector('meta[name="generator"][content*="Shopify"]') ||
+    [...doc.querySelectorAll('script')].some(script =>
+      script.textContent?.includes('window.Shopify')
+    ) ||
+    doc.querySelector('.shopify-section')
+  );
+  if (!isShopify) return;
+
+  // Extract title from Shopify selectors
+  const titleEl = doc.querySelector('h1.product__title') || doc.querySelector('[data-product-title]');
+  if (titleEl?.textContent) {
+    result.title = titleEl.textContent.trim();
+    steps.push('shopify-title');
+  }
+
+  // Extract ingredients from common selectors or via regex fallback
+  let ingredientsText = '';
+  const ingredientsEl = doc.querySelector('.product-ingredients') || doc.querySelector('[data-ingredients]');
+  if (ingredientsEl?.textContent) {
+    ingredientsText = ingredientsEl.textContent.replace(/\s+/g, ' ').trim();
+  } else {
+    const bodyText = doc.body?.textContent || '';
+    const match = bodyText.match(/INGREDIENTS:[\s\S]{100,}/i);
+    if (match) ingredientsText = match[0];
+  }
+  if (ingredientsText.length >= 100) {
+    result.ingredients_raw = ingredientsText;
+    steps.push('shopify-ingredients');
+  }
+
+  // Extract supplement facts from elements starting with "SUPPLEMENT FACTS" with relaxed length requirement
+  let supplementFactsText = '';
+  
+  // First try standard supplement facts selectors
+  const factsSelectors = ['.supplement-facts', '.nutrition-facts', 'table.supplement-facts'];
+  for (const selector of factsSelectors) {
+    const element = doc.querySelector(selector);
+    if (element?.textContent && /SUPPLEMENT FACTS/i.test(element.textContent)) {
+      supplementFactsText = element.textContent.replace(/\s+/g, ' ').trim();
+      break;
+    }
+  }
+  
+  // Fallback: scan all div and table elements
+  if (!supplementFactsText) {
+    const elems = doc.querySelectorAll('div, table');
+    for (const el of elems) {
+      const text = el.textContent || '';
+      if (/SUPPLEMENT FACTS/i.test(text) && text.length >= 200) {
+        supplementFactsText = text.replace(/\s+/g, ' ').trim();
+        break;
+      }
+    }
+  }
+  
+  if (supplementFactsText.length >= 200) {
+    result.supplement_facts = supplementFactsText;
+    steps.push('shopify-supplement-facts');
+  }
+
+  // Numeric doses detection heuristic
+  const combinedText = `${result.ingredients_raw || ''} ${result.supplement_facts || ''}`;
+  result.numeric_doses_present = /\d+\s?(mg|g|mcg|iu)/i.test(combinedText);
+
+  // Append parserStep and set status/remediation if criteria met
+  steps.push('shopify_generic');
+  if ((result.ingredients_raw?.length ?? 0) >= 100 || (result.supplement_facts?.length ?? 0) >= 300) {
+    result._meta!.status = 'success';
+    result._meta!.remediation = 'shopify_generic';
+  }
+
+  result._meta!.parserSteps = steps;
+}
+
+// OCR will be handled by the main function in index.ts
