@@ -1,6 +1,6 @@
 import React from 'react';
 import { render } from '@testing-library/react-native';
-import ProductCard from '../components/ProductCard';
+import ProductCard from '@/components/ProductCard';
 import { ThemeProvider } from '../context/ThemeContext';
 
 const mockProduct = {

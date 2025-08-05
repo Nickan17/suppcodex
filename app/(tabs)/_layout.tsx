@@ -2,7 +2,7 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import Colors from '@/constants/Colors';
-import { Home, Search, BookmarkIcon, BarChart3, Settings } from 'lucide-react-native';
+import { Home, Search, BookmarkIcon, BarChart3, Settings, Target } from 'lucide-react-native';
 
 export default function TabLayout() {
   const { isDark } = useTheme();
@@ -67,6 +67,15 @@ export default function TabLayout() {
           title: 'Settings',
           tabBarIcon: ({ color, size }) => (
             <Settings size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="score"
+        options={{
+          title: 'Score',
+          tabBarIcon: ({ color, size }) => (
+            <Target size={size} color={color} />
           ),
         }}
       />

@@ -18,6 +18,7 @@ const mockScores = {
 const mockProductName = "Magnum Quattro Whey Protein - Chocolate";
 
 export default function ScoreScreen() {
+  console.log('MOUNT ScoreScreen v1');
   const { colors, spacing } = useTheme();
   const [selectedTab, setSelectedTab] = useState('Score');
 

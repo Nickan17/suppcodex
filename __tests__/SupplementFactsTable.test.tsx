@@ -1,6 +1,6 @@
 import React from 'react';
 import { render } from '@testing-library/react-native';
-import SupplementFactsTable from '../components/SupplementFactsTable';
+import SupplementFactsTable from '@/components/SupplementFactsTable';
 
 describe('SupplementFactsTable', () => {
   it('renders correctly at <320px width', () => {
