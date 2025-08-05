@@ -8,7 +8,7 @@ SplashScreen.preventAutoHideAsync();
 export default function Index() {
   // For this MVP, we'll always redirect to onboarding
   // In a real app, we'd check if onboarding was completed
-  const onboardingCompleted = false;
+  const onboardingCompleted = true; // Temporarily set to true for testing
 
   useEffect(() => {
     // Hide splash screen after a short delay

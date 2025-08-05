@@ -30,14 +30,20 @@ export async function chainExtractToScore(url: string, deps: { invoke?: InvokeFn
     return { ok: false, status: ex.status ?? 500, message: ex.message ?? 'Extraction failed' };
   }
 
-  const parsed = ex.data?.parsed;
+  // firecrawl-extract returns parsed data directly at root level, not nested under 'parsed'
+  const parsed = ex.data;
   const meta = ex.data?._meta;
 
-  if (!parsed) {
+  // Check if we have meaningful parsed data (title, ingredients, or supplement facts)
+  const hasTitle = parsed?.title && parsed.title.trim().length > 0;
+  const hasIngredients = parsed?.ingredients_raw && parsed.ingredients_raw.length >= 100;
+  const hasSupplementFacts = parsed?.supplement_facts && parsed.supplement_facts.length >= 300;
+
+  if (!parsed || (!hasTitle && !hasIngredients && !hasSupplementFacts)) {
     return {
       ok: false,
       status: 422,
-      message: meta?.status ? `Extraction failed: ${meta.status}` : 'Extraction failed: missing parsed',
+      message: meta?.status ? `Extraction failed: ${meta.status}` : 'Extraction failed: insufficient data',
     };
   }
 

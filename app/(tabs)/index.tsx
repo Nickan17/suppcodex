@@ -10,197 +10,98 @@ import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import SearchBar from '@/components/SearchBar';
 import ScanPlaceholder from '@/components/ScanPlaceholder';
+import ResultPanel from '@/components/ResultPanel';
 import { Camera, Link2, FileText, ChevronRight, ScanLine, History } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { BarCodeScanner } from 'expo-barcode-scanner';
 import Constants from 'expo-constants';
 
 export default function HomeScreen() {
-  const { isDark } = useTheme();
-  const colors = isDark ? Colors.dark : Colors.light;
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showScanner, setShowScanner] = useState(false);
-  const [, setHasPermission] = useState<boolean | null>(null);
-  const [recentScans] = useState<any[]>([]);
-
-  // This would be populated from real data in a full implementation
-  const hasRecentScans = recentScans.length > 0;
+  console.log('HomeScreen rendering...');
+  const [testUrl, setTestUrl] = useState('https://magnumsupps.com/en-us/products/quattro');
+  const [isLoading, setIsLoading] = useState(false);
+  const [result, setResult] = useState(null);
   
-  const handleBarCodeScanned = ({ type, data }: { type: string, data: string }) => {
-    setShowScanner(false);
-    // In a real app, this would query the API for the product
-    Alert.alert('Barcode detected', `Type: ${type}\nData: ${data}`);
-    router.push('/product/123');
-  };
-
-
-const handlePasteUrl = async () => {
-  router.push('/paste');
-};
-
-  const handleUploadImage = async () => {
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  const testFirecrawl = async () => {
+    setIsLoading(true);
+    setResult(null);
     
-    if (permissionResult.granted === false) {
-      Alert.alert('Permission required', 'You need to grant permission to access your photos');
-      return;
-    }
-    
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 1,
-    });
-    
-    if (!result.canceled) {
-      // Process the image (in a real app, this would send to an API)
-      Alert.alert('Image selected', 'Processing your supplement label...');
-      router.push('/product/123');
+    try {
+      const { invokeEdgeFunction } = await import('@/utils/api');
+      console.log('Testing URL:', testUrl);
+      const response = await invokeEdgeFunction('firecrawl-extract', { url: testUrl });
+      console.log('Response:', response);
+      setResult(response);
+    } catch (error) {
+      console.error('Test error:', error);
+      setResult({ ok: false, message: error.message });
+    } finally {
+      setIsLoading(false);
     }
   };
-
+  
+  const handleScore = async () => {
+    if (!result?.ok) return { ok: false, status: 422, message: 'No valid data to score' };
+    
+    try {
+      const { invokeEdgeFunction } = await import('@/utils/api');
+      const scoreResponse = await invokeEdgeFunction('score-supplement', { 
+        data: { parsed: result.data } 
+      });
+      return scoreResponse;
+    } catch (error) {
+      return { ok: false, status: 500, message: error.message };
+    }
+  };
+  
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.header}>
-          <Typography variant="h2" weight="bold" style={styles.title}>
-            SuppScan
-          </Typography>
-          <Typography 
-            variant="body" 
-            style={{ ...styles.subtitle, color: colors.textSecondary }}
-          >
-            The truth behind every pill
-          </Typography>
-        </View>
-        
-        <SearchBar
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          onClear={() => setSearchQuery('')}
-          placeholder="Search supplements by name or brand..."
-        />
-        
-        {showScanner ? (
-          <Card variant="elevated" style={styles.scannerCard}>
-            <BarCodeScanner
-              onBarCodeScanned={handleBarCodeScanned}
-              style={styles.scanner}
-            />
-            <Button
-              title="Cancel"
-              variant="secondary"
-              onPress={() => setShowScanner(false)}
-              style={styles.cancelButton}
-            />
-          </Card>
-        ) : (
-          <Card variant="elevated" style={styles.scanCard}>
-            <View style={styles.scanCardContent}>
-              <ScanLine size={40} color={colors.primary} />
-              <View style={styles.scanTextContainer}>
-                <Typography variant="h3" weight="semibold">
-                  Scan a Supplement
-                </Typography>
-                <Typography 
-                  variant="body" 
-                  style={{ color: colors.textSecondary }}
-                >
-                  Get instant analysis of any supplement
-                </Typography>
-              </View>
-            </View>
-            <Button
-              title="Scan Barcode"
-              variant="primary"
-              icon={<Camera size={18} color="#FFFFFF" />}
-              onPress={() => router.push('/scan')}
-              fullWidth
-            />
-          </Card>
-        )}
-        
-        <View style={styles.optionsContainer}>
-          <TouchableOpacity 
-            style={[
-              styles.optionButton, 
-              { backgroundColor: colors.backgroundSecondary, borderColor: colors.border }
-            ]}
-            onPress={handlePasteUrl}
-          >
-            <Link2 size={24} color={colors.primary} />
-            <Typography variant="body" weight="medium" style={styles.optionText}>
-              Paste URL
-            </Typography>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[
-              styles.optionButton, 
-              { backgroundColor: colors.backgroundSecondary, borderColor: colors.border }
-            ]}
-            onPress={handleUploadImage}
-          >
-            <FileText size={24} color={colors.primary} />
-            <Typography variant="body" weight="medium" style={styles.optionText}>
-              Upload Label
-            </Typography>
-          </TouchableOpacity>
-        </View>
-        
-        <View style={styles.recentContainer}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionTitleContainer}>
-              <History size={20} color={colors.textSecondary} />
-              <Typography variant="h3" weight="semibold" style={styles.sectionTitle}>
-                Recent Scans
-              </Typography>
-            </View>
-            
-            {hasRecentScans && (
-              <TouchableOpacity onPress={() => router.push('/saved')}>
-                <View style={styles.viewAllContainer}>
-                  <Typography 
-                    variant="bodySmall" 
-                    weight="semibold" 
-                    color={colors.primary}
-                  >
-                    View All
-                  </Typography>
-                  <ChevronRight size={16} color={colors.primary} />
-                </View>
-              </TouchableOpacity>
-            )}
-          </View>
-          
-          {hasRecentScans ? (
-            <View style={{ marginTop: 8 }}>
-              {recentScans.map((scan, index) => (
-                <TouchableOpacity
-                  key={scan.id}
-                  style={{
-                    paddingVertical: 12,
-                    borderBottomWidth: index < recentScans.length - 1 ? 1 : 0,
-                    borderBottomColor: colors.border,
-                  }}
-                  onPress={() => router.push(`/product/${scan.id}`)}
-                >
-                  <Typography variant="body" style={{ color: colors.text }}>
-                    {scan.url}
-                  </Typography>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : (
-            <ScanPlaceholder />
-          )}
-        </View>
-      </ScrollView>
+    <View style={{ flex: 1, backgroundColor: '#ffffff', padding: 20, paddingTop: 60 }}>
+      <Typography variant="h2" weight="bold" style={{ textAlign: 'center', marginBottom: 10 }}>SuppScan</Typography>
+      <Typography variant="body" style={{ textAlign: 'center', marginBottom: 30, color: '#666' }}>Test the firecrawl-extract function</Typography>
       
-      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <View style={{ marginBottom: 20 }}>
+        <Typography variant="body" weight="semibold" style={{ marginBottom: 10 }}>Test URL:</Typography>
+        <View style={{ borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 10 }}>
+          <Typography variant="bodySmall" style={{ color: '#666' }}>{testUrl}</Typography>
+        </View>
+      </View>
+      
+      <Button 
+        title={isLoading ? "Testing..." : "Test Extraction"}
+        onPress={testFirecrawl}
+        disabled={isLoading}
+        variant="primary"
+        style={{ marginBottom: 20 }}
+      />
+      
+      {result && (
+        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+          <ResultPanel
+            url={testUrl}
+            ok={result.ok}
+            data={result.data}
+            raw={result}
+            meta={{
+              status: result.data?._meta?.status || (result.ok ? 'success' : 'unknown'),
+              remediation: result.data?._meta?.remediation,
+              source: result.data?._meta?.source,
+              timings: {
+                ...(result.data?._meta?.firecrawlExtract && { 
+                  firecrawl: result.data._meta.firecrawlExtract.ms 
+                }),
+                ...(result.data?._meta?.scrapfly && { 
+                  scrapfly: result.data._meta.scrapfly.ms 
+                }),
+                ...(result.data?._meta?.scraperapi && { 
+                  scraperapi: result.data._meta.scraperapi.ms 
+                })
+              },
+              parserSteps: result.data?._meta?.parserSteps || []
+            }}
+            onScore={handleScore}
+          />
+        </ScrollView>
+      )}
     </View>
   );
 }

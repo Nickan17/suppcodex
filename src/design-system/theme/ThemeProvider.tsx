@@ -1,15 +1,16 @@
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, ReactNode } from 'react';
 import { useColorScheme } from 'react-native';
-import { colors, spacing, typography } from '../tokens';
+import { colors, spacing, radii, fonts } from '../tokens';
 
 interface ThemeContextType {
   colors: typeof colors;
   spacing: typeof spacing;
-  typography: typeof typography;
+  radii: typeof radii;
+  fonts: typeof fonts;
   isDark: boolean;
 }
 
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+export const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 interface ThemeProviderProps {
   children: ReactNode;
@@ -22,7 +23,8 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const value = {
     colors,
     spacing,
-    typography,
+    radii,
+    fonts,
     isDark,
   };
 
@@ -33,10 +35,3 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   );
 };
 
-export const useTheme = () => {
-  const context = useContext(ThemeContext);
-  if (context === undefined) {
-    throw new Error('useTheme must be used within a ThemeProvider');
-  }
-  return context;
-};
