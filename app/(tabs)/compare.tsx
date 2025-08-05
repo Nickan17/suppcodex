@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet, ScrollView, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { useTheme } from '@/contexts/ThemeContext';
+import { useTheme } from '@/design-system/theme/useTheme';
 import Colors from '@/constants/Colors';
 import Typography from '@/components/ui/Typography';
 import Button from '@/components/ui/Button';

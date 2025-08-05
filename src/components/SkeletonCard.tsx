@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { useTheme } from '@/contexts/ThemeContext';
+import { useTheme } from '@/design-system/theme/useTheme';
 import Colors from '@/constants/Colors';
 
 type Props = { height?: number; width?: number; style?: any };

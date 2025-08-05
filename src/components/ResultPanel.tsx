@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, ScrollView, TouchableOpacity, Platform, Alert } from 'react-native';
 import { router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
-import { useTheme } from '@/contexts/ThemeContext';
+import { useTheme } from '@/design-system/theme/useTheme';
 import Colors from '@/constants/Colors';
 import Typography from '@/components/ui/Typography';
 import Button from '@/components/ui/Button';

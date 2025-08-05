@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { useTheme } from '@/contexts/ThemeContext';
+import { useTheme } from '@/design-system/theme/useTheme';
 import Colors from '@/constants/Colors';
 import { Home, Search, BookmarkIcon, BarChart3, Settings, Target } from 'lucide-react-native';
 

@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
-import { ThemeProvider } from '@/contexts/ThemeContext';
+import { ThemeProvider } from '@/design-system/theme/ThemeProvider';
 import { useFonts } from 'expo-font';
 import {
   Inter_400Regular,

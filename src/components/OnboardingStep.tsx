@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Image, Dimensions, ScrollView } from 'react-native';
 import Typography from './ui/Typography';
 import Button from './ui/Button';
-import { useTheme } from '@/contexts/ThemeContext';
+import { useTheme } from '@/design-system/theme/useTheme';
 import Colors from '@/constants/Colors';
 
 interface OnboardingStepProps {
