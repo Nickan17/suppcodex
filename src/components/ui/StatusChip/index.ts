@@ -1,1 +1,1 @@
-export { default } from './StatusChip';
+export { default as StatusChip } from './StatusChip';

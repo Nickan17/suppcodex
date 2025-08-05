@@ -1,1 +1,1 @@
-export { default } from './PillTab';
+export { default as PillTab } from './PillTab';

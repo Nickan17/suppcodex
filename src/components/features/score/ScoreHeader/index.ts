@@ -1,0 +1,1 @@
+export { default as ScoreHeader } from './ScoreHeader';

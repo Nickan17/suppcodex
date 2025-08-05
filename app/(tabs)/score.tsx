@@ -2,11 +2,8 @@ import React, { useState } from 'react';
 import { ScrollView, View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/design-system/theme';
-import PillTab from '@/components/ui/PillTab';
-import ScoreHeader from '@/components/features/score/ScoreHeader/ScoreHeader';
-import ScoreGrid from '@/components/features/score/ScoreGrid/ScoreGrid';
-import TrackCTA from '@/components/features/score/TrackCTA/TrackCTA';
-import BottomNav from '@/components/features/score/BottomNav/BottomNav';
+import { PillTab } from '@/components/ui';
+import { ScoreHeader, ScoreGrid, TrackCTA, BottomNav } from '@/components/features/score';
 
 const mockScores = {
   purity: 93,
