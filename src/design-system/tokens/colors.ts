@@ -10,5 +10,10 @@ export const colors = {
     warning: '#EAB308', 
     error: '#EF4444' 
   },
+  score: {
+    good: '#16A34A',
+    medium: '#EAB308', 
+    bad: '#EF4444'
+  },
   overlay: 'rgba(0,0,0,0.05)'
 } as const;

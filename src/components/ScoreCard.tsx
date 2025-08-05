@@ -17,9 +17,9 @@ export default function ScoreCard({ score, pros = [], cons = [] }: Props) {
   const grade = score >= 80 ? 'A' : score >= 60 ? 'B' : 'C';
 
   const gradeColor = (grade: string) => {
-    return grade === 'A' ? colors.score.good : 
-           grade === 'B' ? colors.score.medium : 
-           colors.score.bad;
+    return grade === 'A' ? (colors.score?.good ?? colors.semantic.success) : 
+           grade === 'B' ? (colors.score?.medium ?? colors.semantic.warning) : 
+           (colors.score?.bad ?? colors.semantic.error);
   };
 
   async function shareCard() {
