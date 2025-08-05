@@ -14,6 +14,15 @@ const ScoreHeader: React.FC<ScoreHeaderProps> = ({
   productName,
   subtitle = "Nature does not hurry, yet everything is accomplished.",
 }) => {
+  console.log('ScoreHeader dependency types:', {
+    ScoreRing: typeof ScoreRing,
+    useTheme: typeof useTheme,
+    React: typeof React,
+    View: typeof View,
+    Text: typeof Text,
+    StyleSheet: typeof StyleSheet
+  });
+  
   const { colors, fonts, spacing } = useTheme();
 
   return (
