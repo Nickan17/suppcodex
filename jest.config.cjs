@@ -10,7 +10,7 @@ module.exports = {
   moduleNameMapper: {
     "^expo/src/winter/.*$": "<rootDir>/__mocks__/expo-winter-runtime.js",
     '^~/(.*)$': '<rootDir>/$1',
-    '^@/(.*)$': '<rootDir>/$1',
+    '^@/(.*)$': '<rootDir>/src/$1',
     '^@/lib/supabase$': '<rootDir>/__mocks__/lib/supabase.js',
     '^../lib/supabase$': '<rootDir>/__mocks__/lib/supabase.js',
     '^../lib/supabase.ts$': '<rootDir>/__mocks__/lib/supabase.js',

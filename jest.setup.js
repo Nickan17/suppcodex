@@ -37,7 +37,7 @@ jest.mock('expo-constants', () => ({
 }));
 
 // Mock Supabase
-jest.mock("@/lib/supabase", () => require("./__mocks__/lib/supabase.js"));
+jest.mock("@/services/supabase", () => require("./__mocks__/lib/supabase.js"));
 
 // Default no-op fetch so tests don’t hit the network; individual tests can override
 if (!global.fetch) {
