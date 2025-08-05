@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { MetricChip } from '../MetricChip';
+import MetricChip from '../MetricChip/MetricChip';
+import Card from '@/components/ui/Card';
+import StatusChip from '@/components/ui/StatusChip';
 import { useTheme } from '@/design-system/theme';
 
 interface ScoreData {
@@ -17,6 +19,8 @@ interface ScoreGridProps {
 const ScoreGrid: React.FC<ScoreGridProps> = ({ scores }) => {
   console.log('ScoreGrid dependency types:', {
     MetricChip: typeof MetricChip,
+    Card: typeof Card,
+    StatusChip: typeof StatusChip,
     useTheme: typeof useTheme,
     React: typeof React,
     View: typeof View,
