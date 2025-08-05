@@ -1,1 +1,1 @@
-export * from './PillTab';
+export { default } from './PillTab';

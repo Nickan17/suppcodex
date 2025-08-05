@@ -14,7 +14,7 @@ interface ScoreGridProps {
   scores: ScoreData;
 }
 
-export const ScoreGrid: React.FC<ScoreGridProps> = ({ scores }) => {
+const ScoreGrid: React.FC<ScoreGridProps> = ({ scores }) => {
   const { colors, spacing } = useTheme();
 
   const metrics = [
@@ -85,3 +85,5 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
+
+export default ScoreGrid;

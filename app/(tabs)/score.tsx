@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { ScrollView, View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/design-system/theme';
-import { PillTab } from '@/components/ui/PillTab';
-import { ScoreHeader } from '@/components/features/score/ScoreHeader/ScoreHeader';
-import { ScoreGrid } from '@/components/features/score/ScoreGrid/ScoreGrid';
-import { TrackCTA } from '@/components/features/score/TrackCTA/TrackCTA';
-import { BottomNav } from '@/components/features/score/BottomNav/BottomNav';
+import PillTab from '@/components/ui/PillTab';
+import ScoreHeader from '@/components/features/score/ScoreHeader/ScoreHeader';
+import ScoreGrid from '@/components/features/score/ScoreGrid/ScoreGrid';
+import TrackCTA from '@/components/features/score/TrackCTA/TrackCTA';
+import BottomNav from '@/components/features/score/BottomNav/BottomNav';
 
 const mockScores = {
   purity: 93,
@@ -19,6 +19,13 @@ const mockProductName = "Magnum Quattro Whey Protein - Chocolate";
 
 export default function ScoreScreen() {
   console.log('MOUNT ScoreScreen v1');
+  console.log('Component types:', {
+    PillTab: typeof PillTab,
+    ScoreHeader: typeof ScoreHeader,
+    ScoreGrid: typeof ScoreGrid,
+    TrackCTA: typeof TrackCTA,
+    BottomNav: typeof BottomNav
+  });
   const { colors, spacing } = useTheme();
   const [selectedTab, setSelectedTab] = useState('Score');
 

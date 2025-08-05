@@ -1,14 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
+import Card from '@/components/ui/Card';
+import Button from '@/components/ui/Button';
 import { useTheme } from '@/design-system/theme';
 
 interface TrackCTAProps {
   onAddToStack: () => void;
 }
 
-export const TrackCTA: React.FC<TrackCTAProps> = ({ onAddToStack }) => {
+const TrackCTA: React.FC<TrackCTAProps> = ({ onAddToStack }) => {
   const { colors, fonts, spacing } = useTheme();
 
   return (
@@ -57,3 +57,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+
+export default TrackCTA;

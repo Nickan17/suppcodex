@@ -20,7 +20,7 @@ interface ButtonProps extends TouchableOpacityProps {
   textStyle?: TextStyle;
 }
 
-export const Button: React.FC<ButtonProps> = ({
+const Button: React.FC<ButtonProps> = ({
   title,
   variant = 'primary',
   size = 'md',
@@ -125,3 +125,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 });
+
+export default Button;

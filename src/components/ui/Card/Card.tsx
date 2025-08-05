@@ -8,7 +8,7 @@ interface CardProps {
   padding?: keyof typeof import('@/design-system/tokens').spacing;
 }
 
-export const Card: React.FC<CardProps> = ({ 
+const Card: React.FC<CardProps> = ({ 
   children, 
   style,
   padding = 4
@@ -32,3 +32,5 @@ export const Card: React.FC<CardProps> = ({
     </View>
   );
 };
+
+export default Card;

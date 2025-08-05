@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { ScoreRing } from '@/components/ui/ScoreRing';
+import ScoreRing from '@/components/ui/ScoreRing';
 import { useTheme } from '@/design-system/theme';
 
 interface ScoreHeaderProps {
@@ -9,7 +9,7 @@ interface ScoreHeaderProps {
   subtitle?: string;
 }
 
-export const ScoreHeader: React.FC<ScoreHeaderProps> = ({
+const ScoreHeader: React.FC<ScoreHeaderProps> = ({
   score,
   productName,
   subtitle = "Nature does not hurry, yet everything is accomplished.",
@@ -61,3 +61,5 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
 });
+
+export default ScoreHeader;

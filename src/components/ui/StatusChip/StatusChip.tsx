@@ -9,7 +9,7 @@ interface StatusChipProps {
   style?: ViewStyle;
 }
 
-export const StatusChip: React.FC<StatusChipProps> = ({
+const StatusChip: React.FC<StatusChipProps> = ({
   label,
   status,
   emoji,
@@ -54,3 +54,5 @@ export const StatusChip: React.FC<StatusChipProps> = ({
     </View>
   );
 };
+
+export default StatusChip;

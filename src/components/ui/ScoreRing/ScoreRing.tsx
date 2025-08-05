@@ -10,7 +10,7 @@ interface ScoreRingProps {
   strokeWidth?: number;
 }
 
-export const ScoreRing: React.FC<ScoreRingProps> = ({
+const ScoreRing: React.FC<ScoreRingProps> = ({
   size,
   value,
   label,
@@ -117,3 +117,5 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 });
+
+export default ScoreRing;

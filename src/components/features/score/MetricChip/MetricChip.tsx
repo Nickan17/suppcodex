@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Card } from '@/components/ui/Card';
+import Card from '@/components/ui/Card';
 import { useTheme } from '@/design-system/theme';
 
 interface MetricChipProps {
@@ -11,7 +11,7 @@ interface MetricChipProps {
   badgeEmoji?: string;
 }
 
-export const MetricChip: React.FC<MetricChipProps> = ({
+const MetricChip: React.FC<MetricChipProps> = ({
   icon,
   label,
   value,
@@ -105,3 +105,5 @@ const styles = StyleSheet.create({
     height: '100%',
   },
 });
+
+export default MetricChip;

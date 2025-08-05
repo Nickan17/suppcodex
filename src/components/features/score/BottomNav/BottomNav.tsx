@@ -13,7 +13,7 @@ interface BottomNavProps {
   items: NavItem[];
 }
 
-export const BottomNav: React.FC<BottomNavProps> = ({ items }) => {
+const BottomNav: React.FC<BottomNavProps> = ({ items }) => {
   const { colors, fonts, spacing, radii } = useTheme();
 
   return (
@@ -74,3 +74,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 });
+
+export default BottomNav;

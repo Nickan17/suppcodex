@@ -15,7 +15,7 @@ interface PillTabProps {
   style?: ViewStyle;
 }
 
-export const PillTab: React.FC<PillTabProps> = ({
+const PillTab: React.FC<PillTabProps> = ({
   title,
   isSelected = false,
   onPress,
@@ -71,3 +71,5 @@ export const PillTab: React.FC<PillTabProps> = ({
     </TouchableOpacity>
   );
 };
+
+export default PillTab;
