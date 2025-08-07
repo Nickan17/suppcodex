@@ -32,6 +32,7 @@ interface ExtractMeta {
   factsTokens?: number;
   ocrTried?: boolean;
   ocrPicked?: string;
+  rateLimited?: number; // ms spent waiting for rate limiter
 }
 
 interface ParsedResult {
@@ -76,6 +77,43 @@ const CORS_HEADERS = {
 
 const FIRECRAWL_TIMEOUT = 30_000; // 30 seconds
 const FIRECRAWL_API_URL = "https://api.firecrawl.dev/v1/scrape";
+
+// Simple token bucket rate limiter for Firecrawl requests
+const RATE_LIMIT_TOKENS = Number(Deno.env.get("FIRECRAWL_RPS") || "5");
+const RATE_LIMIT_INTERVAL_MS = 1000;
+let availableTokens = RATE_LIMIT_TOKENS;
+let lastRefill = Date.now();
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function takeToken(): Promise<number> {
+  let waited = 0;
+  while (true) {
+    const now = Date.now();
+    if (now - lastRefill >= RATE_LIMIT_INTERVAL_MS) {
+      availableTokens = RATE_LIMIT_TOKENS;
+      lastRefill = now;
+    }
+    if (availableTokens > 0) {
+      availableTokens--;
+      return waited;
+    }
+    const wait = RATE_LIMIT_INTERVAL_MS - (now - lastRefill);
+    await delay(wait);
+    waited += wait;
+  }
+}
+
+function parseRetryAfter(header: string | null): number | null {
+  if (!header) return null;
+  const secs = Number(header);
+  if (!Number.isNaN(secs)) return secs * 1000;
+  const date = Date.parse(header);
+  if (!Number.isNaN(date)) return Math.max(0, date - Date.now());
+  return null;
+}
 
 /**
  * Create a JSON response with proper CORS headers
@@ -169,32 +207,64 @@ async function callFirecrawl(
   url: string,
   apiKey: string,
   isSecondPass = false,
-): Promise<{ result: unknown; step: ChainStep }> {
+): Promise<{ result: unknown; step: ChainStep; rateLimited: number }> {
   const startTime = Date.now();
-  
-  try {
-    console.log(`🔥 Calling Firecrawl${isSecondPass ? ' (second pass)' : ''} for: ${url}`);
-    
-    const response = await fetchWithTimeout(FIRECRAWL_API_URL, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        url,
-        // For second pass, only use HTML and disable main content filtering
-        formats: isSecondPass ? ["html"] : ["html", "markdown"],
-        onlyMainContent: !isSecondPass,
-        timeout: 35000
-      }),
-    });
+  let attempt = 0;
+  let backoff = 200;
+  let waitedTotal = 0;
 
-    const ms = Date.now() - startTime;
-    const result = response.ok ? await response.json() : null;
+  while (attempt < 5) {
+    attempt++;
+    const waited = await takeToken();
+    waitedTotal += waited;
 
-    if (!response.ok) {
+    try {
+      console.log(`🔥 Calling Firecrawl${isSecondPass ? ' (second pass)' : ''} for: ${url}`);
+
+      const response = await fetchWithTimeout(FIRECRAWL_API_URL, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          url,
+          // For second pass, only use HTML and disable main content filtering
+          formats: isSecondPass ? ["html"] : ["html", "markdown"],
+          onlyMainContent: !isSecondPass,
+          timeout: 35000
+        }),
+      });
+
+      const ms = Date.now() - startTime;
+
+      if (response.ok) {
+        const result = await response.json();
+        const hasContent = result?.success && (result?.data?.markdown || result?.data?.html);
+        return {
+          result,
+          step: {
+            provider: isSecondPass ? "firecrawl-second" : "firecrawl",
+            status: hasContent ? "ok" : "empty",
+            ms,
+            code: response.status,
+            ...(hasContent ? {} : { hint: "No content returned from Firecrawl" }),
+          },
+          rateLimited: waitedTotal,
+        };
+      }
+
       const errorText = await response.text().catch(() => "Unknown error");
+      const retryAfter = parseRetryAfter(response.headers.get("Retry-After"));
+      const shouldRetry = attempt < 5 && [429, 500, 502, 503, 504].includes(response.status);
+      if (shouldRetry) {
+        const sleep = retryAfter ?? backoff;
+        await delay(sleep);
+        waitedTotal += sleep;
+        backoff = Math.min(backoff * 2, 1600);
+        continue;
+      }
+
       return {
         result: null,
         step: {
@@ -204,33 +274,108 @@ async function callFirecrawl(
           code: response.status,
           hint: `HTTP ${response.status}: ${errorText}`,
         },
+        rateLimited: waitedTotal,
+      };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (attempt < 5) {
+        await delay(backoff);
+        waitedTotal += backoff;
+        backoff = Math.min(backoff * 2, 1600);
+        continue;
+      }
+      const ms = Date.now() - startTime;
+      console.error(`❌ Firecrawl error${isSecondPass ? ' (second pass)' : ''} for ${url}:`, errorMessage);
+      return {
+        result: null,
+        step: {
+          provider: isSecondPass ? "firecrawl-second" : "firecrawl",
+          status: "error",
+          ms,
+          hint: `Request failed: ${errorMessage}`,
+        },
+        rateLimited: waitedTotal,
+      };
+    }
+  }
+
+  const ms = Date.now() - startTime;
+  return {
+    result: null,
+    step: {
+      provider: isSecondPass ? "firecrawl-second" : "firecrawl",
+      status: "error",
+      ms,
+      hint: "Exceeded retry limit",
+    },
+    rateLimited: waitedTotal,
+  };
+}
+
+/**
+ * Fallback to Scrapfly provider
+ */
+async function callScrapfly(
+  url: string,
+  apiKey: string,
+): Promise<{ html: string | null; step: ChainStep }> {
+  const startTime = Date.now();
+  try {
+    console.log(`🕷️ Calling Scrapfly for: ${url}`);
+    const response = await fetchWithTimeout("https://api.scrapfly.io/scrape", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+      },
+      body: JSON.stringify({ url, render_js: false }),
+    });
+
+    const ms = Date.now() - startTime;
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "Unknown error");
+      return {
+        html: null,
+        step: {
+          provider: "scrapfly",
+          status: "error",
+          ms,
+          code: response.status,
+          hint: `HTTP ${response.status}: ${errorText}`,
+        },
       };
     }
 
-    // Check if we got usable content from scrape format
-    const hasContent = result?.success && (result?.data?.markdown || result?.data?.html);
-    
+    const contentType = response.headers.get("content-type") || "";
+    let html: string | null = null;
+    if (contentType.includes("application/json")) {
+      const json = await response.json().catch(() => null);
+      html = json?.result?.content || json?.content || null;
+    } else {
+      html = await response.text();
+    }
+
+    const hasContent = !!html;
     return {
-      result,
+      html: hasContent ? html : null,
       step: {
-        provider: isSecondPass ? "firecrawl-second" : "firecrawl",
+        provider: "scrapfly",
         status: hasContent ? "ok" : "empty",
         ms,
         code: response.status,
-        ...(hasContent ? {} : { hint: "No content returned from Firecrawl" }),
+        ...(hasContent ? {} : { hint: "No content returned from Scrapfly" }),
       },
     };
 
   } catch (error) {
     const ms = Date.now() - startTime;
     const errorMessage = error instanceof Error ? error.message : String(error);
-    
-    console.error(`❌ Firecrawl error${isSecondPass ? ' (second pass)' : ''} for ${url}:`, errorMessage);
-    
+    console.error(`❌ Scrapfly error for ${url}:`, errorMessage);
     return {
-      result: null,
+      html: null,
       step: {
-        provider: isSecondPass ? "firecrawl-second" : "firecrawl",
+        provider: "scrapfly",
         status: "error",
         ms,
         hint: `Request failed: ${errorMessage}`,
@@ -438,8 +583,9 @@ async function handler(request: Request): Promise<Response> {
     }
     
     // First pass
-    const { result: firecrawlResult, step: firecrawlStep } = await callFirecrawl(url, apiKey, false);
+    const { result: firecrawlResult, step: firecrawlStep, rateLimited: rl1 } = await callFirecrawl(url, apiKey, false);
     meta.chain.push(firecrawlStep);
+    let rateLimitedTotal = rl1;
 
     // 4. Parse the result
     let data = (firecrawlResult as any)?.data ?? {};
@@ -450,34 +596,52 @@ async function handler(request: Request): Promise<Response> {
 
     // get OCR key if present
     const OCRSPACE_API_KEY = Deno.env.get("OCRSPACE_API_KEY") || undefined;
+    const SCRAPFLY_API_KEY = Deno.env.get("SCRAPFLY_API_KEY") || undefined;
 
     // Parse with first pass content
     let parsedRich = await parseProductPage(htmlForParser, url, null, { OCRSPACE_API_KEY });
-
-    // Check if we need second pass
-    const factsTokens = countFactsTokens(parsedRich.supplement_facts);
-    const shouldDoSecondPass = needsSecondPass(parsedRich, factsTokens);
+    let finalFactsTokens = countFactsTokens(parsedRich.supplement_facts);
+    const shouldDoSecondPass = needsSecondPass(parsedRich, finalFactsTokens);
 
     if (shouldDoSecondPass) {
-      console.log(`🔄 Triggering second pass for ${url} (factsTokens: ${factsTokens})`);
-      
+      console.log(`🔄 Triggering second pass for ${url} (factsTokens: ${finalFactsTokens})`);
+
       // Second pass with different parameters
-      const { result: secondResult, step: secondStep } = await callFirecrawl(url, apiKey, true);
+      const { result: secondResult, step: secondStep, rateLimited: rl2 } = await callFirecrawl(url, apiKey, true);
       meta.chain.push(secondStep);
+      rateLimitedTotal += rl2;
 
       if (secondResult) {
         // Re-parse with second pass content
         const secondData = (secondResult as any)?.data ?? {};
         const secondHtml = typeof secondData?.html === 'string' ? secondData.html : '';
-        
+
         if (secondHtml) {
           parsedRich = await parseProductPage(secondHtml, url, null, { OCRSPACE_API_KEY });
         }
       }
-      
+
+      finalFactsTokens = countFactsTokens(parsedRich.supplement_facts);
       // Mark that we did a second pass
       meta.secondPass = true;
     }
+
+    // Scrapfly fallback if Firecrawl failed or content weak
+    let usedScrapfly = false;
+    if (
+      SCRAPFLY_API_KEY &&
+      (meta.chain.some(s => s.provider.startsWith('firecrawl') && s.status === 'error') || finalFactsTokens < 2)
+    ) {
+      const { html: scrapHtml, step: scrapStep } = await callScrapfly(url, SCRAPFLY_API_KEY);
+      meta.chain.push(scrapStep);
+      if (scrapHtml) {
+        parsedRich = await parseProductPage(scrapHtml, url, null, { OCRSPACE_API_KEY });
+        finalFactsTokens = countFactsTokens(parsedRich.supplement_facts);
+        usedScrapfly = true;
+      }
+    }
+
+    if (rateLimitedTotal > 0) meta.rateLimited = rateLimitedTotal;
 
     // Map ParsedProduct -> our SuccessResponse
     const ingredientsArray =
@@ -494,8 +658,6 @@ async function handler(request: Request): Promise<Response> {
         || '';
 
     // Add OCR and facts telemetry to meta
-    const finalFactsTokens = countFactsTokens(factsRaw);
-    
     const out: SuccessResponse = {
       title: parsedRich.title || 'Unknown Product',
       ingredients: ingredientsArray,
@@ -517,10 +679,11 @@ async function handler(request: Request): Promise<Response> {
         ocrPicked: parsedRich._meta?.ocrPicked,
         facts_kind: parsedRich._meta?.facts_kind,
         ingredients_source: parsedRich._meta?.ingredients_source,
-        had_numeric_doses: parsedRich._meta?.had_numeric_doses
+        had_numeric_doses: parsedRich._meta?.had_numeric_doses,
+        ...(usedScrapfly ? { provider: 'scrapfly' } : {}),
       }
     };
-    
+
     // 5. Check if we got usable content
     const hasAny =
       !!out.title ||
@@ -537,7 +700,7 @@ async function handler(request: Request): Promise<Response> {
 
     // 6. Success! Return parsed result
     console.log(`✅ Successfully parsed content from ${url}`);
-    
+
     return jsonResponse(out, 200);
 
   } catch (error) {
