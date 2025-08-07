@@ -22,6 +22,72 @@ export interface ParsedProduct {
 
 import { DOMParser } from "https://deno.land/x/deno_dom/deno-dom-wasm.ts";
 
+/** Sanitize string by removing control characters and collapsing whitespace. */
+function sanitize(text: string | null | undefined): string | null {
+  if (!text) return null;
+  return text.replace(/[\u0000-\u001F\u007F-\u009F]/g, "").replace(/\s\s+/g, ' ').trim();
+}
+
+/** Sanitize node text by trimming and collapsing whitespace. */
+function sanitizeNodeText(el: any): string {
+  if (!el?.textContent) return '';
+  return el.textContent.replace(/\s+/g, ' ').trim();
+}
+
+/** Check if element or its ancestors match exclusion selectors. */
+function isExcluded(el: any): boolean {
+  if (!el) return false;
+  
+  const exclusionSelectors = [
+    '.reviews', '[id*="review"]', '.jdgm-*', '.yotpo-*', '.stamped-*',
+    '.faq', '[id*="faq"]', '[class*="accordion"]'
+  ];
+  
+  let current = el;
+  while (current && current.nodeType !== undefined) {
+    if (current.nodeType === 1) { // Element node
+      const className = current.className || '';
+      const id = current.id || '';
+      
+      // Check class-based exclusions
+      if (className.includes('review') || className.includes('faq') || 
+          className.includes('jdgm-') || className.includes('yotpo-') || 
+          className.includes('stamped-') || className.includes('accordion')) {
+        return true;
+      }
+      
+      // Check ID-based exclusions
+      if (id.includes('review') || id.includes('faq') || 
+          (id.startsWith('shopify-section-') && id.includes('reviews'))) {
+        return true;
+      }
+      
+      // Check for review/FAQ content markers
+      const text = current.textContent || '';
+      if (text.toLowerCase().includes('customer review') || 
+          text.toLowerCase().includes('frequently asked') ||
+          text.toLowerCase().includes('q&a')) {
+        return true;
+      }
+    }
+    current = current.parentNode;
+  }
+  return false;
+}
+
+/** Count supplement facts tokens in text. */
+function tokenScore(s: string): number {
+  if (!s) return 0;
+  return ((s || '').match(/(serving size|amount per serving|% dv|calories|protein|mg|mcg|iu|supplement\s+facts|nutrition\s+facts)/gi) || []).length;
+}
+
+/** Check if parsed content has usable supplement facts. */
+function hasUsableContent(parsed: ParsedProduct): boolean {
+  const factsLength = parsed.supplement_facts?.length || 0;
+  const factsTokens = tokenScore(parsed.supplement_facts || '');
+  return factsLength >= 200 && factsTokens >= 2;
+}
+
 const fetchWithTimeout = (
   url: string,
   init: RequestInit = {},
@@ -35,69 +101,204 @@ const fetchWithTimeout = (
 };
 
 /* ---------------------------------------------------------------------------
- * 5. ultra‑light OCR panel grab
+ * 5. Robust OCR panel grab with comprehensive candidate gathering
  * -------------------------------------------------------------------------*/
 async function lightOCR(
   html: string,
   pageUrl: string,
   apiKey?: string,
-): Promise<string | null> {
+): Promise<{ text: string; factsTokens: number } | null> {
   if (!apiKey) return null;
 
   const doc = new DOMParser().parseFromString(html, "text/html");
   if (!doc) return null;
 
-  const imgs = [...doc.querySelectorAll("img")];
-  if (!imgs.length) return null;
+  // Gather comprehensive image candidates
+  const candidates: Array<{ url: string; score: number; source: string }> = [];
 
-  // Rank images by likelihood of containing supplement panel
-  const ranked = imgs
-    .map((el, index) => {
-      const src = (el.getAttribute("src") || "").toLowerCase();
-      const alt = (el.getAttribute("alt") || "").toLowerCase();
-      let score = 0;
-      if (/supplement|nutrition|facts|ingredients|panel|label|back/.test(src)) score += 3;
-      if (/supplement|nutrition|facts|ingredients|panel|label|back/.test(alt)) score += 3;
-
-      // Boost mid‑carousel positions (5‑20) and filenames hinting at panels
-      if (index >= 4 && index < 20) score += 1;          // positional boost
-      if (/facts|panel|ingredients/.test(src)) score += 2; // filename boost
-
-      return { el, score, index };
-    })
-    .filter((o) => o.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 8); // max 8 images to OCR
-
-  for (const { el } of ranked) {
-    let src = el.getAttribute("src") || "";
-    if (!src) continue;
-    if (src.startsWith("//")) src = `https:${src}`;
-    if (src.startsWith("/")) src = new URL(src, pageUrl).href;
-
+  // Helper to normalize URLs
+  const normalizeUrl = (url: string): string | null => {
+    if (!url) return null;
     try {
+      if (url.startsWith("//")) url = `https:${url}`;
+      if (url.startsWith("/")) url = new URL(url, pageUrl).href;
+      return url.startsWith("http") ? url : null;
+    } catch {
+      return null;
+    }
+  };
+
+  // Helper to get nearby text context for scoring
+  const getNearbyText = (el: any): string => {
+    let current = el.parentNode;
+    let text = '';
+    for (let i = 0; i < 3 && current; i++) {
+      if (current.textContent) {
+        text += current.textContent;
+      }
+      current = current.parentNode;
+    }
+    return text.slice(0, 400); // Limit to ~400 chars
+  };
+
+  // Check for Transparent Labs domain-specific nudge
+  const isTransparentLabs = pageUrl.includes('transparentlabs.com');
+  console.log(`🏷️ ${isTransparentLabs ? 'Transparent Labs detected' : 'Standard domain'} for ${pageUrl}`);
+
+  // 1. Gather from <img> elements with multiple src attributes
+  const imgs = [...doc.querySelectorAll("img")];
+  imgs.forEach((el, index) => {
+    const srcAttrs = ['src', 'data-src', 'data-original', 'data-zoom-image', 'data-rimg-src'];
+    
+    for (const attr of srcAttrs) {
+      const url = normalizeUrl(el.getAttribute(attr));
+      if (!url) continue;
+      
+      const alt = (el.getAttribute("alt") || "").toLowerCase();
+      const filename = url.toLowerCase();
+      const nearbyText = getNearbyText(el).toLowerCase();
+      
+      let score = 0;
+      
+      // +3 if filename or alt matches supplement facts patterns
+      if (/(supplement|nutrition|facts|label|panel|back)/i.test(filename)) score += 3;
+      if (/(supplement|nutrition|facts|label|panel|back)/i.test(alt)) score += 3;
+      
+      // +2 if nearby text contains "Supplement Facts"
+      if (nearbyText.includes('supplement facts')) score += 2;
+      
+      // +1 for size hints or mid-carousel position
+      const width = parseInt(el.getAttribute('width') || '0');
+      const height = parseInt(el.getAttribute('height') || '0');
+      if (width >= 500 || height >= 500) score += 1;
+      if (index >= 4 && index < 20) score += 1; // mid-carousel
+      
+      // Transparent Labs domain-specific nudge: +2 bonus for any supplement-related images
+      if (isTransparentLabs && score > 0) {
+        score += 2;
+        console.log(`🏷️ Transparent Labs bonus applied to ${filename}`);
+      }
+      
+      if (score > 0) {
+        candidates.push({ url, score, source: `img[${attr}]` });
+      }
+    }
+  });
+
+  // 2. Gather from <picture><source> elements
+  const sources = [...doc.querySelectorAll("picture source")];
+  sources.forEach((el) => {
+    const srcsets = [el.getAttribute('srcset'), el.getAttribute('data-srcset')]
+      .filter(Boolean);
+    
+    for (const srcset of srcsets) {
+      if (!srcset) continue;
+      // Parse srcset and get first/best URL
+      const urls = srcset.split(',')
+        .map(s => s.trim().split(' ')[0])
+        .filter(Boolean);
+      
+      if (urls.length > 0) {
+        const url = normalizeUrl(urls[0]);
+        if (url) {
+          const nearbyText = getNearbyText(el).toLowerCase();
+          let score = 1; // Base score for picture sources
+          if (nearbyText.includes('supplement facts')) score += 2;
+          
+          // Transparent Labs domain-specific nudge
+          if (isTransparentLabs) score += 1;
+          
+          candidates.push({ url, score, source: 'picture>source' });
+        }
+      }
+    }
+  });
+
+  // 3. Gather from <a href> inside nodes containing "Supplement Facts"
+  const links = [...doc.querySelectorAll("a[href]")];
+  links.forEach((el) => {
+    const href = el.getAttribute('href');
+    const nearbyText = getNearbyText(el).toLowerCase();
+    
+    if (nearbyText.includes('supplement facts')) {
+      const url = normalizeUrl(href);
+      if (url && /\.(jpe?g|png|gif|webp)$/i.test(url)) {
+        let score = 2;
+        // Transparent Labs domain-specific nudge
+        if (isTransparentLabs) score += 1;
+        candidates.push({ url, score, source: 'a[href] near facts' });
+      }
+    }
+  });
+
+  // 4. Transparent Labs domain-specific high-priority targeting
+  if (isTransparentLabs) {
+    // High priority for explicit supplement facts images
+    const tlSpecific = [
+      ...doc.querySelectorAll('img[alt*="Supplement Facts" i]'),
+      // Find figures that contain "Supplement Facts" text and have images
+      ...Array.from(doc.querySelectorAll('figure'))
+        .filter((fig: any) => fig.textContent?.includes('Supplement Facts'))
+        .flatMap((fig: any) => [...fig.querySelectorAll('img')])
+    ];
+    
+    tlSpecific.forEach((el: any) => {
+      const url = normalizeUrl(el.getAttribute('src') || el.getAttribute('data-src'));
+      if (url) {
+        console.log(`🏷️ Transparent Labs high-priority supplement facts image: ${url}`);
+        candidates.push({ url, score: 10, source: 'TL supplement facts' }); // Highest priority
+      }
+    });
+  }
+
+  // Sort by score and dedupe
+  const uniqueCandidates = Array.from(
+    new Map(candidates.map(c => [c.url, c])).values()
+  ).sort((a, b) => b.score - a.score).slice(0, 8);
+
+  console.log(`[OCR] Found ${uniqueCandidates.length} image candidates`);
+
+  // Try OCR on each candidate until we find good facts
+  for (const { url, score, source } of uniqueCandidates) {
+    try {
+      console.log(`[OCR] Trying ${source}: ${url.slice(0, 100)}... (score: ${score})`);
+      
       const fd = new FormData();
-      fd.append("url", src);
+      fd.append("url", url);
       fd.append("apikey", apiKey);
       fd.append("language", "eng");
       fd.append("isOverlayRequired", "false");
       fd.append("scale", "true");
+      
       const res = await fetchWithTimeout(
         "https://api.ocr.space/parse/image",
         { method: "POST", body: fd },
         10_000,
       );
+      
       const j = await res.json().catch(() => ({}));
       const text = j?.ParsedResults?.[0]?.ParsedText as string | undefined;
+      
       if (!text) continue;
+      
       const clean = text.trim();
-      if (/ingredients?:/i.test(clean) || /supplement\s*facts/i.test(clean)) {
-        return clean;
+      
+      // Token gate: must match at least 2 supplement facts tokens
+      const factsTokens = (clean.match(/(serving size|calories|% ?dv|mg|g|mcg|iu|vitamin)/gi) || []).length;
+      
+      if (factsTokens >= 2) {
+        console.log(`[OCR] ✅ Accepted OCR result with ${factsTokens} tokens`);
+        return { text: clean, factsTokens };
+      } else {
+        console.log(`[OCR] ❌ Rejected OCR result with only ${factsTokens} tokens`);
       }
-    } catch (_) {
+    } catch (error) {
+      console.warn(`[OCR] Error processing ${url}:`, error);
       // ignore OCR errors and continue
     }
   }
+  
+  console.log('[OCR] No suitable supplement facts found in any image');
   return null;
 }
 
@@ -405,11 +606,13 @@ async function augmentFactsAndIngredients(doc: any, html: string, result: Parsed
   }
 
   // 3 - Image-panel OCR fallback (NOW, Huel, Legendary)
+  let ocrResult = null;
   if ((!result.supplement_facts || result.supplement_facts.length < 300) && env?.OCRSPACE_API_KEY) {
-    const ocr2 = await lightOCR(html, url, env.OCRSPACE_API_KEY);
-    if (ocr2 && ocr2.length >= 300) {
-      result.supplement_facts = ocr2;
+    ocrResult = await lightOCR(html, url, env.OCRSPACE_API_KEY);
+    if (ocrResult && ocrResult.text && ocrResult.factsTokens >= 2) {
+      result.supplement_facts = ocrResult.text;
       steps.push("facts-ocr-panel");
+      console.log(`[Parser] ✅ OCR found supplement facts with ${ocrResult.factsTokens} tokens`);
     }
   }
   
@@ -500,8 +703,62 @@ export async function parseProductPage(
     }
   }
   
-  console.log('[PARSER] Extraction complete');
+  // Add comprehensive telemetry
+  if (!result._meta) result._meta = { parserSteps: [] };
   
+  // Determine facts source
+  let factsSource = 'none';
+  let factsTokens = 0;
+  let ocrTried = false;
+  let ocrPicked = false;
+  
+  if (result.supplement_facts) {
+    factsTokens = tokenScore(result.supplement_facts);
+    
+    // Determine source based on parser steps
+    const steps = result._meta.parserSteps || [];
+    if (steps.includes('facts-ocr-panel')) {
+      factsSource = 'ocr';
+      ocrTried = true;
+      ocrPicked = true;
+    } else if (steps.includes('facts-ldjson-nutrition')) {
+      factsSource = 'ld-json';
+    } else if (steps.includes('table-repack')) {
+      factsSource = 'table';
+    } else if (result.supplement_facts.length > 100) {
+      factsSource = 'supplement_facts';
+    }
+  } else if (env?.OCRSPACE_API_KEY) {
+    ocrTried = true;
+    ocrPicked = false;
+  }
+  
+  // Add telemetry to metadata
+  result._meta.factsSource = factsSource;
+  result._meta.factsTokens = factsTokens;
+  result._meta.ocrTried = ocrTried;
+  result._meta.ocrPicked = ocrPicked;
+  
+  console.log(`[PARSER] Extraction complete: factsSource=${factsSource}, factsTokens=${factsTokens}, ocrTried=${ocrTried}`);
+  
+  // Sanitize all string fields before returning
+  result.title = sanitize(result.title);
+  result.ingredients_raw = sanitize(result.ingredients_raw);
+  result.supplement_facts = sanitize(result.supplement_facts);
+  result.serving_size = sanitize(result.serving_size);
+  result.directions = sanitize(result.directions);
+  result.manufacturer = sanitize(result.manufacturer);
+  result.other_ingredients = sanitize(result.other_ingredients);
+  if (result.warnings) {
+    result.warnings = result.warnings.map(w => sanitize(w)).filter(Boolean) as string[];
+  }
+  if (result.allergens) {
+    result.allergens = result.allergens.map(a => sanitize(a)).filter(Boolean) as string[];
+  }
+  if (result.proprietary_blends) {
+    result.proprietary_blends = result.proprietary_blends.map(b => sanitize(b)).filter(Boolean) as string[];
+  }
+
   return result;
 }
 
@@ -533,10 +790,9 @@ export function extractTitle(html: string): string | null {
   
   let title = filtered[0];
   
-  if (!title) {
-    const alt = doc.querySelector("h1.product-name,h1.product__title,h1.product-heading")?.textContent?.trim();
-    if (alt) title = alt;
-  }
+  // before other fallbacks:
+  const h1Title = doc.querySelector('h1.product__title, h1.product-title, h1.product-single__title')?.textContent?.trim();
+  if (!title && h1Title) title = h1Title;
   
   if (!title) {
     const og = doc.querySelector("meta[property='og:title']")?.getAttribute("content")?.trim();
@@ -548,6 +804,13 @@ export function extractTitle(html: string): string | null {
     if (ld) { try { const j = JSON.parse(ld); if (j?.name) title = j.name.trim(); } catch (err) { console.warn('[parser json]', err); } }
   }
   
+  if (title) {
+    // Clean up whitespace, remove control characters, and limit length
+    title = sanitize(title);
+    if (title && title.length > 250) {
+      title = title.substring(0, 250).trim() + '...';
+    }
+  }
   return title || null;
 }
 
