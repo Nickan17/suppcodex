@@ -101,13 +101,32 @@ const fetchWithTimeout = (
 };
 
 /* ---------------------------------------------------------------------------
- * 5. Robust OCR panel grab with comprehensive candidate gathering
+ * 5. Extract ingredients from OCR text
+ * -------------------------------------------------------------------------*/
+
+function extractIngredientsFromText(text: string): string | null {
+  // Capture after "Ingredients:" until a stop token
+  const m = text.match(
+    /ingredients?\s*:\s*([\s\S]+?)(?:allergen|allergens|contains|warning|supplement\s+facts|nutrition\s+facts|amino|^$)/i
+  );
+  if (!m) return null;
+  let block = m[1].trim();
+
+  // Clean up: collapse spaces, remove repeated newlines
+  block = block.replace(/\s+/g, ' ').replace(/\s*[,;]\s*/g, ', ');
+  // Short sanity check
+  if (block.length < 20) return null;
+  return `Ingredients: ${block}`;
+}
+
+/* ---------------------------------------------------------------------------
+ * 6. Robust OCR panel grab with comprehensive candidate gathering
  * -------------------------------------------------------------------------*/
 async function lightOCR(
   html: string,
   pageUrl: string,
   apiKey?: string,
-): Promise<{ text: string; factsTokens: number } | null> {
+): Promise<{ text: string; factsTokens: number; ingredientsFromOCR?: string } | null> {
   if (!apiKey) return null;
 
   const doc = new DOMParser().parseFromString(html, "text/html");
@@ -160,12 +179,17 @@ async function lightOCR(
       
       let score = 0;
       
+      // +4 if filename or alt matches ingredients patterns (higher than supplement facts)
+      if (/(ingredients|ingredient)/i.test(filename)) score += 4;
+      if (/(ingredients|ingredient)/i.test(alt)) score += 4;
+      
       // +3 if filename or alt matches supplement facts patterns
       if (/(supplement|nutrition|facts|label|panel|back)/i.test(filename)) score += 3;
       if (/(supplement|nutrition|facts|label|panel|back)/i.test(alt)) score += 3;
       
-      // +2 if nearby text contains "Supplement Facts"
+      // +2 if nearby text contains "Supplement Facts" or "Ingredients"
       if (nearbyText.includes('supplement facts')) score += 2;
+      if (nearbyText.includes('ingredients')) score += 2;
       
       // +1 for size hints or mid-carousel position
       const width = parseInt(el.getAttribute('width') || '0');
@@ -283,14 +307,18 @@ async function lightOCR(
       
       const clean = text.trim();
       
-      // Token gate: must match at least 2 supplement facts tokens
-      const factsTokens = (clean.match(/(serving size|calories|% ?dv|mg|g|mcg|iu|vitamin)/gi) || []).length;
+      // Try to extract ingredients from the OCR text
+      const ingredientsFromOCR = extractIngredientsFromText(clean);
       
-      if (factsTokens >= 2) {
-        console.log(`[OCR] ✅ Accepted OCR result with ${factsTokens} tokens`);
-        return { text: clean, factsTokens };
+      // Token gate: must match at least 2 supplement facts tokens OR have ingredients
+      const factsTokens = (clean.match(/(serving size|calories|% ?dv|mg|g|mcg|iu|vitamin)/gi) || []).length;
+      const hasIngredients = ingredientsFromOCR !== null;
+      
+      if (factsTokens >= 2 || hasIngredients) {
+        console.log(`[OCR] ✅ Accepted OCR result with ${factsTokens} tokens, ingredients: ${hasIngredients ? 'yes' : 'no'}`);
+        return { text: clean, factsTokens, ingredientsFromOCR: ingredientsFromOCR || undefined };
       } else {
-        console.log(`[OCR] ❌ Rejected OCR result with only ${factsTokens} tokens`);
+        console.log(`[OCR] ❌ Rejected OCR result with only ${factsTokens} tokens and no ingredients`);
       }
     } catch (error) {
       console.warn(`[OCR] Error processing ${url}:`, error);
@@ -607,12 +635,22 @@ async function augmentFactsAndIngredients(doc: any, html: string, result: Parsed
 
   // 3 - Image-panel OCR fallback (NOW, Huel, Legendary)
   let ocrResult = null;
-  if ((!result.supplement_facts || result.supplement_facts.length < 300) && env?.OCRSPACE_API_KEY) {
+  if ((!result.supplement_facts || result.supplement_facts.length < 300 || !result.ingredients_raw) && env?.OCRSPACE_API_KEY) {
     ocrResult = await lightOCR(html, url, env.OCRSPACE_API_KEY);
-    if (ocrResult && ocrResult.text && ocrResult.factsTokens >= 2) {
-      result.supplement_facts = ocrResult.text;
-      steps.push("facts-ocr-panel");
-      console.log(`[Parser] ✅ OCR found supplement facts with ${ocrResult.factsTokens} tokens`);
+    if (ocrResult && ocrResult.text) {
+      // Set supplement facts if we have enough tokens or if no facts exist
+      if (ocrResult.factsTokens >= 2 && (!result.supplement_facts || result.supplement_facts.length < 300)) {
+        result.supplement_facts = ocrResult.text;
+        steps.push("facts-ocr-panel");
+        console.log(`[Parser] ✅ OCR found supplement facts with ${ocrResult.factsTokens} tokens`);
+      }
+      
+      // Set ingredients from OCR if found
+      if (ocrResult.ingredientsFromOCR && !result.ingredients_raw) {
+        result.ingredients_raw = ocrResult.ingredientsFromOCR;
+        steps.push("ingredients-ocr-panel");
+        console.log(`[Parser] ✅ OCR found ingredients`);
+      }
     }
   }
   
@@ -733,13 +771,40 @@ export async function parseProductPage(
     ocrPicked = false;
   }
   
+  // Determine facts_kind
+  let facts_kind = 'ingredients_only';
+  if (result.supplement_facts) {
+    const factsText = result.supplement_facts.toLowerCase();
+    if (/supplement facts/.test(factsText)) {
+      facts_kind = 'supplement_facts';
+    } else if (/nutrition facts/.test(factsText)) {
+      facts_kind = 'nutrition_facts';
+    }
+  }
+  
+  // Determine ingredients_source
+  let ingredients_source = 'html';
+  const steps = result._meta.parserSteps || [];
+  if (result.ingredients_raw) {
+    if (steps.includes('ingredients-ocr-panel')) {
+      ingredients_source = 'ocr_image';
+    } else if (steps.includes('ingredients-ld-json')) {
+      ingredients_source = 'ldjson';
+    } else {
+      ingredients_source = 'html';
+    }
+  }
+  
   // Add telemetry to metadata
   result._meta.factsSource = factsSource;
   result._meta.factsTokens = factsTokens;
   result._meta.ocrTried = ocrTried;
   result._meta.ocrPicked = ocrPicked;
+  result._meta.facts_kind = facts_kind;
+  result._meta.ingredients_source = ingredients_source;
+  result._meta.had_numeric_doses = result.numeric_doses_present;
   
-  console.log(`[PARSER] Extraction complete: factsSource=${factsSource}, factsTokens=${factsTokens}, ocrTried=${ocrTried}`);
+  console.log(`[PARSER] Extraction complete: factsSource=${factsSource}, factsTokens=${factsTokens}, ocrTried=${ocrTried}, facts_kind=${facts_kind}, ingredients_source=${ingredients_source}, numeric_doses=${result.numeric_doses_present}`);
   
   // Sanitize all string fields before returning
   result.title = sanitize(result.title);

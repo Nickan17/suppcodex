@@ -40,13 +40,19 @@ interface ExpoConfig {
 const config: ExpoConfig = {
   expo: {
     name: 'bolt-expo-nativewind',
-    slug: 'bolt-expo-nativewind',
+    slug: 'suppcodex',
     version: '1.0.0',
     orientation: 'portrait',
     icon: './assets/images/icon.png',
     scheme: 'myapp',
     userInterfaceStyle: 'automatic',
     newArchEnabled: true,
+    updates: {
+      url: 'https://u.expo.dev/eed8a4b9-e354-47f0-9b92-b602a1e91e17',
+    },
+    runtimeVersion: {
+      policy: 'appVersion',
+    },
     ios: {
       supportsTablet: true,
     },

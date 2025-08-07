@@ -1,45 +1,38 @@
 import 'react-native-get-random-values'; // polyfill for crypto.randomUUID on older Expo
 import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
+import { View, ScrollView } from 'react-native';
 import { router } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { useTheme } from '../../context/ThemeContext';
-import Colors from '../../constants/Colors';
 import Typography from '@/components/ui/Typography';
 import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
-import SearchBar from '@/components/SearchBar';
-import ScanPlaceholder from '@/components/ScanPlaceholder';
 import ResultPanel from '@/components/ResultPanel';
-import { Camera, Link2, FileText, ChevronRight, ScanLine, History } from 'lucide-react-native';
-import * as ImagePicker from 'expo-image-picker';
-import { BarCodeScanner } from 'expo-barcode-scanner';
-import Constants from 'expo-constants';
+import { chainExtractToScore } from '@/utils/chainExtractToScore';
+import { useProductContext } from '@/contexts/ProductContext';
 
 export default function HomeScreen() {
   console.log('HomeScreen rendering...');
-  const [testUrl, setTestUrl] = useState('https://magnumsupps.com/en-us/products/quattro');
+  const { setProduct } = useProductContext();
+  const [testUrl] = useState('https://magnumsupps.com/en-us/products/quattro');
   const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState<any>(null);
   
-  const testFirecrawl = async () => {
+  const handleAnalyzeTestUrl = async () => {
     setIsLoading(true);
-    setResult(null);
-    
     try {
-      const { invokeEdgeFunction } = await import('@/utils/api');
-      console.log('Testing URL:', testUrl);
-      const response = await invokeEdgeFunction('firecrawl-extract', { url: testUrl });
-      console.log('Response:', response);
-      setResult(response);
-    } catch (error) {
-      console.error('Test error:', error);
-      setResult({ ok: false, message: error.message });
+      const product = await chainExtractToScore(testUrl);
+      
+      // Store product in context
+      setProduct(product);
+      
+      // Navigate to score screen
+      router.push(`/score/${product.productId}`);
+    } catch (err: any) {
+      console.error('Analysis failed:', err);
+      setResult({ ok: false, message: err.message });
     } finally {
       setIsLoading(false);
     }
   };
-  
+
   const handleScore = async () => {
     if (!result?.ok) return { ok: false, status: 422, message: 'No valid data to score' };
     
@@ -55,22 +48,36 @@ export default function HomeScreen() {
   };
   
   return (
-    <View style={{ flex: 1, backgroundColor: '#ffffff', padding: 20, paddingTop: 60 }}>
-      <Typography variant="h2" weight="bold" style={{ textAlign: 'center', marginBottom: 10 }}>SuppScan</Typography>
-      <Typography variant="body" style={{ textAlign: 'center', marginBottom: 30, color: '#666' }}>Test the firecrawl-extract function</Typography>
+    <View style={{ flex: 1, backgroundColor: '#FFFDF9', padding: 20, paddingTop: 60 }}>
+      <Typography variant="h2" weight="bold" style={{ textAlign: 'center', marginBottom: 10, color: '#183A2B' }}>🌿 SuppCodex</Typography>
+      <Typography variant="body" style={{ textAlign: 'center', marginBottom: 30, color: '#183A2B', opacity: 0.7 }}>Discover the wellness potential of your supplements</Typography>
       
+      <View style={{ marginBottom: 30 }}>
+        <Button 
+          title="Paste a URL"
+          onPress={() => router.push('/paste')}
+          variant="primary"
+          style={{ marginBottom: 16 }}
+        />
+        <Button 
+          title="Scan Barcode"
+          onPress={() => router.push('/scan')}
+          variant="secondary"
+        />
+      </View>
+
       <View style={{ marginBottom: 20 }}>
-        <Typography variant="body" weight="semibold" style={{ marginBottom: 10 }}>Test URL:</Typography>
+        <Typography variant="body" weight="semibold" style={{ marginBottom: 10, color: '#999' }}>Development Test:</Typography>
         <View style={{ borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 10 }}>
           <Typography variant="bodySmall" style={{ color: '#666' }}>{testUrl}</Typography>
         </View>
       </View>
       
       <Button 
-        title={isLoading ? "Testing..." : "Test Extraction"}
-        onPress={testFirecrawl}
+        title={isLoading ? "Analyzing..." : "Analyze Test URL"}
+        onPress={handleAnalyzeTestUrl}
         disabled={isLoading}
-        variant="primary"
+        variant="outline"
         style={{ marginBottom: 20 }}
       />
       
@@ -102,87 +109,8 @@ export default function HomeScreen() {
           />
         </ScrollView>
       )}
+
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 16,
-    paddingTop: Platform.OS === 'ios' ? 60 : 16 + Constants.statusBarHeight,
-  },
-  header: {
-    marginBottom: 24,
-  },
-  title: {
-    marginBottom: 4,
-  },
-  subtitle: {
-    marginBottom: 8,
-  },
-  scanCard: {
-    marginBottom: 16,
-  },
-  scanCardContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  scanTextContainer: {
-    flex: 1,
-    marginLeft: 16,
-  },
-  optionsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-  },
-  optionButton: {
-    width: '48%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  optionText: {
-    marginLeft: 8,
-  },
-  recentContainer: {
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  sectionTitle: {
-    marginLeft: 8,
-  },
-  viewAllContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  scannerCard: {
-    marginBottom: 16,
-    padding: 0,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  scanner: {
-    height: 300,
-    width: '100%',
-  },
-  cancelButton: {
-    margin: 16,
-  },
-});

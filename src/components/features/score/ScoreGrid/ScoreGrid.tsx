@@ -1,9 +1,10 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import MetricChip from '../MetricChip/MetricChip';
+import MetricChip from '../MetricChip/MetricChip.tsx';
 import Card from '@/components/ui/Card';
 import StatusChip from '@/components/ui/StatusChip';
 import { useTheme } from '@/design-system/theme';
+import { omit } from 'lodash';
 
 interface ScoreData {
   purity: number;
@@ -16,22 +17,15 @@ interface ScoreGridProps {
   scores: ScoreData;
 }
 
+const safeValue = (v: unknown) =>
+  (typeof v === 'number' && isFinite(v)) ? v : null;
+
 const ScoreGrid: React.FC<ScoreGridProps> = ({ scores }) => {
-  console.log('ScoreGrid dependency types:', {
-    MetricChip: typeof MetricChip,
-    Card: typeof Card,
-    StatusChip: typeof StatusChip,
-    useTheme: typeof useTheme,
-    React: typeof React,
-    View: typeof View,
-    StyleSheet: typeof StyleSheet
-  });
-  
   const { colors, spacing } = useTheme();
 
   const metrics = [
     {
-      key: 'purity',
+      id: 'purity',
       icon: '🍃',
       label: 'Purity',
       value: scores.purity,
@@ -39,7 +33,7 @@ const ScoreGrid: React.FC<ScoreGridProps> = ({ scores }) => {
       badgeEmoji: '✨',
     },
     {
-      key: 'effectiveness',
+      id: 'effectiveness',
       icon: '🔮',
       label: 'Effectiveness',
       value: scores.effectiveness,
@@ -47,7 +41,7 @@ const ScoreGrid: React.FC<ScoreGridProps> = ({ scores }) => {
       badgeEmoji: '⚡',
     },
     {
-      key: 'safety',
+      id: 'safety',
       icon: '🛡️',
       label: 'Safety',
       value: scores.safety,
@@ -55,7 +49,7 @@ const ScoreGrid: React.FC<ScoreGridProps> = ({ scores }) => {
       badgeEmoji: '🛡️',
     },
     {
-      key: 'value',
+      id: 'value',
       icon: '💰',
       label: 'Value',
       value: scores.value,
@@ -65,22 +59,32 @@ const ScoreGrid: React.FC<ScoreGridProps> = ({ scores }) => {
   ];
 
   return (
-    <View style={[styles.container, { gap: spacing[2] }]}>
-      <View style={[styles.row, { gap: spacing[2] }]}>
-        <View style={styles.chip}>
-          <MetricChip {...metrics[0]} />
-        </View>
-        <View style={styles.chip}>
-          <MetricChip {...metrics[1]} />
-        </View>
+    <View style={[styles.container, { gap: spacing }]}>
+      <View style={[styles.row, { gap: spacing }]}>
+        {metrics.slice(0, 2).map((m, i) => (
+          <View key={m.id ?? i} style={styles.chip}>
+            <MetricChip
+              icon={m.icon}
+              label={m.label}
+              value={safeValue(m.value)}
+              color={m.color}
+              badgeEmoji={m.badgeEmoji}
+            />
+          </View>
+        ))}
       </View>
-      <View style={[styles.row, { gap: spacing[2] }]}>
-        <View style={styles.chip}>
-          <MetricChip {...metrics[2]} />
-        </View>
-        <View style={styles.chip}>
-          <MetricChip {...metrics[3]} />
-        </View>
+      <View style={[styles.row, { gap: spacing }]}>
+        {metrics.slice(2, 4).map((m, i) => (
+          <View key={m.id ?? i} style={styles.chip}>
+            <MetricChip
+              icon={m.icon}
+              label={m.label}
+              value={safeValue(m.value)}
+              color={m.color}
+              badgeEmoji={m.badgeEmoji}
+            />
+          </View>
+        ))}
       </View>
     </View>
   );

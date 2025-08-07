@@ -21,7 +21,9 @@
     "test:health": "npm run test:pipeline && npm run test",
     "test:all": "npm run lint && npm run type-check && npm run test:coverage && npm run test:pipeline",
     "setup": "npm install && cp .env.example .env.local",
-    "docs:serve": "echo 'README.md documentation available - see project structure section'"
+    "docs:serve": "echo 'README.md documentation available - see project structure section'",
+    "score:smoke": "./scripts/dev/score-smoke.sh",
+    "score:e2e": "./scripts/dev/e2e-extract-score.sh"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.2.3",
@@ -33,7 +35,7 @@
     "@react-navigation/native": "^7.0.14",
     "@supabase/supabase-js": "^2.49.8",
     "axios": "^1.10.0",
-    "dotenv": "^16.4.5",
+    "dotenv": "^16.6.1",
     "expo": "~53.0.0",
     "expo-barcode-scanner": "~13.0.0",
     "expo-blur": "~14.1.3",
@@ -41,7 +43,7 @@
     "expo-clipboard": "~7.1.4",
     "expo-constants": "~17.1.3",
     "expo-font": "~13.3.1",
-    "expo-haptics": "~14.1.3",
+    "expo-haptics": "~14.1.4",
     "expo-image-picker": "~16.1.4",
     "expo-linking": "~7.1.3",
     "expo-router": "~4.0.0",
@@ -59,6 +61,7 @@
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "react-native": "0.79.2",
+    "react-native-confetti-cannon": "^1.5.2",
     "react-native-gesture-handler": "~2.24.0",
     "react-native-get-random-values": "^1.11.0",
     "react-native-reanimated": "~3.17.4",

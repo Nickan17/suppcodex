@@ -1,26 +1,28 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import ScoreRing from '@/components/ui/ScoreRing';
+import ScoreRing from '@/components/ui/ScoreRing/ScoreRing';
 import { useTheme } from '@/design-system/theme';
 
 interface ScoreHeaderProps {
+  title: string;
   score: number;
-  productName: string;
+  grade?: string;
   subtitle?: string;
+  ringColor?: string;
+  onDebugPress?: () => void;
 }
 
 const ScoreHeader: React.FC<ScoreHeaderProps> = ({
+  title,
   score,
-  productName,
+  grade,
   subtitle = "Nature does not hurry, yet everything is accomplished.",
+  ringColor,
+  onDebugPress,
 }) => {
-  console.log('ScoreHeader dependency types:', {
+  console.log('ScoreHeader deps:', {
     ScoreRing: typeof ScoreRing,
     useTheme: typeof useTheme,
-    React: typeof React,
-    View: typeof View,
-    Text: typeof Text,
-    StyleSheet: typeof StyleSheet
   });
   
   const { colors, fonts, spacing } = useTheme();
@@ -36,14 +38,19 @@ const ScoreHeader: React.FC<ScoreHeaderProps> = ({
       </Text>
       
       <View style={[styles.scoreContainer, { marginBottom: spacing[4] }]}>
-        <ScoreRing size={200} value={score} />
+        <ScoreRing 
+          size={200} 
+          score={score === 0 ? null : score} 
+          progressColor={ringColor}
+          grade={grade || (score === 0 ? '—' : String(score))}
+        />
       </View>
       
       <Text style={[styles.productName, { 
         fontFamily: fonts.body.family, 
         color: colors.textPrimary
       }]}>
-        {productName}
+        {title}
       </Text>
     </View>
   );

@@ -6,7 +6,7 @@ import { useTheme } from '@/design-system/theme';
 interface MetricChipProps {
   icon: string;
   label: string;
-  value: number;
+  value: number | null;
   color: string;
   badgeEmoji?: string;
 }
@@ -38,7 +38,7 @@ const MetricChip: React.FC<MetricChipProps> = ({
             fontFamily: fonts.heading.family,
             color: colors.textPrimary 
           }]}>
-            {value}
+            {value !== null ? Math.round(value) : '—'}
           </Text>
           {badgeEmoji && (
             <Text style={styles.badge}>{badgeEmoji}</Text>
@@ -52,7 +52,7 @@ const MetricChip: React.FC<MetricChipProps> = ({
             styles.progressFill, 
             { 
               backgroundColor: color,
-              width: `${value}%`,
+              width: `${value !== null ? Math.min(100, Math.max(0, value)) : 0}%`,
               borderRadius: radii.xs,
             }
           ]} 

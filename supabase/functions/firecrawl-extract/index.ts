@@ -514,7 +514,10 @@ async function handler(request: Request): Promise<Response> {
         factsSource: parsedRich._meta?.factsSource,
         factsTokens: finalFactsTokens,
         ocrTried: parsedRich._meta?.ocrTried || false,
-        ocrPicked: parsedRich._meta?.ocrPicked
+        ocrPicked: parsedRich._meta?.ocrPicked,
+        facts_kind: parsedRich._meta?.facts_kind,
+        ingredients_source: parsedRich._meta?.ingredients_source,
+        had_numeric_doses: parsedRich._meta?.had_numeric_doses
       }
     };
     

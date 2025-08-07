@@ -67,6 +67,11 @@ Scoring rubric (weight guidance; keep each field 0..100):
 - safety: warnings, contraindications, allergens, proprietary blends
 - value: price-per-serving (if not provided, estimate from mainstream market), potency-per-dollar
 
+Special rules for product types:
+- If facts_kind is "nutrition_facts" and ingredients exist but no numeric dosages: treat as normal for protein powders. Penalize transparency slightly for missing dosages; do not invent dosages.
+- If product_type_hint is "protein": focus purity and ingredient quality (sweeteners, gums, additives), allergen clarity, and overall transparency. Effectiveness is more about protein quality than dosed actives.
+- For concerns: prefer "No per-ingredient dosages disclosed" over "No ingredient list provided" when ingredients exist but dosages are missing.
+
 Overall "score" should be a rounded integer consistent with the subscores (e.g., average or rubric-composite). If data is missing, score conservatively and set subscores to 0 rather than null. Keep highlights/concerns short, user-facing, and specific (e.g., "Whey isolate primary protein").
 `.trim();
   const userContent = data.userContent ?? JSON.stringify(data);
