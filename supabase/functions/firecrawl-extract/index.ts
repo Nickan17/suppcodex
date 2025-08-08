@@ -214,6 +214,30 @@ async function tryShopifyJson(url: string): Promise<{ result: ParsedResult | nul
 }
 
 /**
+ * Strip review blobs from supplement facts to prevent UI clutter
+ */
+function stripReviewsBlob(s: string): string {
+  if (!s) return s;
+  const splitters = [
+    /customer reviews/i,
+    /see all reviews/i,
+    /write a review/i,
+    /most recent/i,
+    /highest rating/i,
+    /lowest rating/i,
+    /pictures/i,
+    /videos/i,
+    /most helpful/i,
+  ];
+  let cut = s;
+  for (const rx of splitters) {
+    const m = cut.search(rx);
+    if (m > -1) cut = cut.slice(0, m);
+  }
+  return cut.trim().slice(0, 2000);
+}
+
+/**
  * Check if parsed result looks thin and needs fallback
  */
 function looksThin(parsedResult: any, hasNumericDoses: boolean = false, factsTokens: number = 0): boolean {
@@ -841,9 +865,7 @@ async function handler(request: Request): Promise<Response> {
     
     // Optional: Trim large review blobs server side
     if (out.supplementFacts?.raw) {
-      out.supplementFacts.raw = out.supplementFacts.raw
-        .replace(/customer reviews[\s\S]+$/i, '') // remove trailing review texts
-        .slice(0, 2000); // cap length for UI performance
+      out.supplementFacts.raw = stripReviewsBlob(out.supplementFacts.raw);
     }
     
     // 5. Check if we got usable content

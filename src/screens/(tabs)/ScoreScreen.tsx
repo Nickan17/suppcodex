@@ -5,6 +5,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useTheme } from '../../design-system/theme';
 import { useProduct } from '../../contexts/ProductContext';
 import { toGrade } from '../../utils/toGrade';
+import { cleanProductTitle } from '../../utils/cleanProductTitle';
 import { mapExtractAndScoreToNormalized, NormalizedScore, CertBadge } from '../../utils/scoreResult';
 import ScoreHeader from '../../components/features/score/ScoreHeader/ScoreHeader';
 import HighlightsList from '../../components/features/score/HighlightsList/HighlightsList';
@@ -13,6 +14,9 @@ import ScoreGrid from '../../components/features/score/ScoreGrid/ScoreGrid';
 import TrackCTA from '../../components/features/score/TrackCTA/TrackCTA';
 import DebugDrawer from '../../components/features/score/DebugDrawer/DebugDrawer';
 import ScoreCelebration from '../../components/features/score/ScoreCelebration/ScoreCelebration';
+import { LabelSummary } from '../../components/features/score/LabelSummary/LabelSummary';
+import { RubricBullets } from '../../components/features/score/RubricBullets/RubricBullets';
+import { IngredientChips } from '../../components/features/score/IngredientChips/IngredientChips';
 
 export default function ScoreScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -94,14 +98,6 @@ export default function ScoreScreen() {
     );
   }
 
-  // Extract data defensively and normalize
-  const score = Number.isFinite(current.score?.score) ? current.score.score : 0;
-  const title = current.product?.title || 'Unknown Product';
-  const highlights = Array.isArray(current.score?.highlights) ? current.score.highlights : [];
-  const concerns = Array.isArray(current.score?.concerns) ? current.score.concerns : [];
-  const grade = toGrade(score);
-  
-  // Create normalized score object for clean UI rendering
   let normalizedScore: NormalizedScore | null = null;
   if (current.product && current.score) {
     try {
@@ -110,14 +106,19 @@ export default function ScoreScreen() {
           title: current.product.title,
           ingredients: current.product.ingredients || [],
           supplementFacts: current.product.facts ? { raw: current.product.facts } : undefined,
-          _meta: { factsSource: current.meta?.factsSource }
+          _meta: { 
+            factsSource: current.meta?.factsSource, 
+            factsTokens: current.meta?.factsTokens,
+            servingSize: current.product?.servingSize || null,
+            productType: current.meta?.productType || 'other'
+          }
         },
         score: {
           score: current.score.score || 0,
-          purity: Math.max(0, (current.score.score || 0) - 5),
-          effectiveness: Math.max(0, (current.score.score || 0) - 3), 
-          safety: Math.max(0, (current.score.score || 0) + 2),
-          value: Math.max(0, (current.score.score || 0) - 1),
+          purity: current.score.purity || 0,
+          effectiveness: current.score.effectiveness || 0,
+          safety: current.score.safety || 0,
+          value: current.score.value || 0,
           highlights: current.score.highlights || [],
           concerns: current.score.concerns || []
         }
@@ -126,6 +127,11 @@ export default function ScoreScreen() {
       console.warn('Failed to normalize score data:', error);
     }
   }
+  const score = normalizedScore?.score ?? 0;
+  const title = normalizedScore?.displayTitle ?? cleanProductTitle(current.product?.title);
+  const highlights = normalizedScore?.highlights ?? [];
+  const concerns = normalizedScore?.concerns ?? [];
+  const grade = toGrade(score);
   
   // Only show service unavailable banner when scorer actually failed (not weak extraction)
   const showServiceUnavailable = Boolean(current.meta?.score?.error);
@@ -196,6 +202,17 @@ export default function ScoreScreen() {
           />
         </TouchableOpacity>
 
+        {/* Label Summary */}
+        {normalizedScore && (
+          <LabelSummary
+            source={normalizedScore.meta?.factsSource}
+            tokens={normalizedScore.meta?.factsTokens}
+            serving={normalizedScore.meta?.servingSize}
+            quality={normalizedScore.dataQuality}
+            colors={colors}
+          />
+        )}
+
         {/* Scoring Unavailable Banner */}
         {showServiceUnavailable && (
           <View style={[styles.errorBanner, { backgroundColor: '#FDE7E3' }]}>
@@ -222,6 +239,16 @@ export default function ScoreScreen() {
             <MiniStat label="Safety" value={normalizedScore.safety} colors={colors} />
             <MiniStat label="Value" value={normalizedScore.value} colors={colors} />
           </View>
+        )}
+
+        {/* Rubric Bullets */}
+        {normalizedScore?.rubric && (
+          <>
+            <RubricBullets title={`Purity (${normalizedScore.purity})`} bullets={normalizedScore.rubric.purity} colors={colors} />
+            <RubricBullets title={`Effectiveness (${normalizedScore.effectiveness})`} bullets={normalizedScore.rubric.effectiveness} colors={colors} />
+            <RubricBullets title={`Safety (${normalizedScore.safety})`} bullets={normalizedScore.rubric.safety} colors={colors} />
+            <RubricBullets title={`Value (${normalizedScore.value})`} bullets={normalizedScore.rubric.value} colors={colors} />
+          </>
         )}
 
         {/* Score Grid - only show if we have a valid score */}
@@ -254,22 +281,22 @@ export default function ScoreScreen() {
         </Text>
         {concerns?.length ? (
           <ConcernsList items={concerns} />
-        ) : null}
+        ) : (
+          <View style={styles.emptyState}>
+            <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
+              No significant concerns identified.
+            </Text>
+          </View>
+        )}
 
-        {/* Ingredients Card */}
+        {/* Ingredients Section */}
         {normalizedScore?.ingredients?.length ? (
-          <Card title="Ingredients" colors={colors}>
-            {normalizedScore.ingredients.slice(0, 10).map((ing, i) => (
-              <Text key={i} style={[styles.ingredientItem, { color: colors.textPrimary }]}>
-                • {ing}
-              </Text>
-            ))}
-            {normalizedScore.ingredients.length > 10 && (
-              <Text style={[styles.ingredientMore, { color: colors.textSecondary }]}>
-                ... and {normalizedScore.ingredients.length - 10} more
-              </Text>
-            )}
-          </Card>
+          <>
+            <Text style={[styles.sectionHeader, { color: colors.textPrimary || '#123926' }]}>
+              Ingredients
+            </Text>
+            <IngredientChips items={normalizedScore.ingredients} colors={colors} />
+          </>
         ) : null}
 
         {/* Actions */}

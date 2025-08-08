@@ -865,6 +865,13 @@ export function extractTitle(html: string): string | null {
   
   let title = filtered[0];
   
+  if (title) {
+    const looksLikeReviews = /customer reviews|see all reviews|write a review|most recent|highest rating|lowest rating|pictures|videos|most helpful/i.test(title);
+    if (looksLikeReviews || title.length > 120) {
+      title = null;
+    }
+  }
+  
   // before other fallbacks:
   const h1Title = doc.querySelector('h1.product__title, h1.product-title, h1.product-single__title')?.textContent?.trim();
   if (!title && h1Title) title = h1Title;

@@ -244,14 +244,25 @@ Overall "score" should be a rounded integer consistent with the subscores (e.g.,
     const parsed = JSON.parse(txt);
     const clamp = (n: any) => Math.max(0, Math.min(100, Math.round(Number(n) || 0)));
     
+    let highlights = Array.isArray(parsed.highlights) ? parsed.highlights.slice(0,3) : [];
+    let concerns = Array.isArray(parsed.concerns) ? parsed.concerns.slice(0,3) : [];
+    
+    // Default empty state handling
+    if (highlights.length === 0) {
+      highlights = ['Analysis complete'];
+    }
+    if (concerns.length === 0) {
+      concerns = ['No significant concerns identified'];
+    }
+    
     const scoreResult = {
       score: clamp(parsed.score),
       purity: clamp(parsed.purity),
       effectiveness: clamp(parsed.effectiveness),
       safety: clamp(parsed.safety),
       value: clamp(parsed.value),
-      highlights: Array.isArray(parsed.highlights) ? parsed.highlights.slice(0,3) : [],
-      concerns: Array.isArray(parsed.concerns) ? parsed.concerns.slice(0,3) : [],
+      highlights,
+      concerns,
     };
     
     return { result: scoreResult, chain };

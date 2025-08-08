@@ -1,0 +1,12 @@
+{
+  "whey protein isolate": ["wpi", "whey isolate"],
+  "creatine monohydrate": ["creatine", "cm"],
+  "beta-alanine": ["beta alanine", "ba"],
+  "caffeine": ["caffeine anhydrous", "caffeine (as anhydrous)"],
+  "l-citrulline": ["citrulline", "l citrulline"],
+  "bcaa": ["branched chain amino acids", "leucine isoleucine valine"],
+  "whey protein concentrate": ["wpc", "whey concentrate"],
+  "casein protein": ["casein", "micellar casein"],
+  "taurine": ["l-taurine"],
+  "tyrosine": ["l-tyrosine", "n-acetyl-l-tyrosine"]
+}

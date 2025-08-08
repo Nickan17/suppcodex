@@ -22,7 +22,7 @@ if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_ANON_KEY:-}" ]; then
   exit 1
 fi
 
-BASE="https://$SUPABASE_URL/functions/v1"
+BASE="$SUPABASE_URL/functions/v1"
 AUTH="apikey: $SUPABASE_ANON_KEY"
 
 echo "🚀 Running smoke test against: $SUPABASE_URL"
