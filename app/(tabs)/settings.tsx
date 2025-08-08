@@ -18,8 +18,7 @@ import {
 } from 'lucide-react-native';
 
 export default function SettingsScreen() {
-  const { isDark, theme, toggleTheme } = useTheme();
-  const colors = isDark ? Colors.dark : Colors.light;
+  const { isDark, theme, toggleTheme, colors } = useTheme();
 
   const renderSettingsItem = (
     icon: React.ReactNode,

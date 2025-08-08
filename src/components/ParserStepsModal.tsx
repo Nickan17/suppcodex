@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Modal, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme } from '../design-system/theme';
 import Colors from '../constants/Colors';
 import Typography from './ui/Typography';
 import { X } from 'lucide-react-native';

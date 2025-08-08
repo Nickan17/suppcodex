@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import ScoreRing from '@/components/ui/ScoreRing/ScoreRing';
-import { useTheme } from '@/design-system/theme';
+import ScoreRing from '../../../ui/ScoreRing/ScoreRing';
+import { useTheme } from '../../../../design-system/theme';
 
 interface ScoreHeaderProps {
   title: string;

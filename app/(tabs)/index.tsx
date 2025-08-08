@@ -2,11 +2,12 @@ import 'react-native-get-random-values'; // polyfill for crypto.randomUUID on ol
 import React, { useState } from 'react';
 import { View, ScrollView } from 'react-native';
 import { router } from 'expo-router';
-import Typography from '@/components/ui/Typography';
-import Button from '@/components/ui/Button';
-import ResultPanel from '@/components/ResultPanel';
-import { chainExtractToScore } from '@/utils/chainExtractToScore';
-import { useProductContext } from '@/contexts/ProductContext';
+import Typography from '../../src/components/ui/Typography';
+import Button from '../../src/components/ui/Button';
+import ResultPanel from '../../src/components/ResultPanel';
+import Toast from 'react-native-toast-message';
+import { chainExtractToScore } from '../../src/utils/chainExtractToScore';
+import { useProductContext } from '../../src/contexts/ProductContext';
 
 export default function HomeScreen() {
   console.log('HomeScreen rendering...');
@@ -23,11 +24,22 @@ export default function HomeScreen() {
       // Store product in context
       setProduct(product);
       
-      // Navigate to score screen
-      router.push(`/score/${product.productId}`);
-    } catch (err: any) {
-      console.error('Analysis failed:', err);
-      setResult({ ok: false, message: err.message });
+      // Navigate to score screen  
+      router.push({ pathname: '/score/[id]', params: { id: product.product?.id || 'latest' } });
+    } catch (error: unknown) {
+      console.error('Analysis failed:', error);
+      
+      const err = error as { error?: string; message?: string };
+      // Handle rate limiting specially
+      if (err.error === 'rate_limited') {
+        Toast.show({
+          type: 'error',
+          text1: 'Hold on—too many requests',
+          text2: 'Please wait a minute before trying again.'
+        });
+      }
+      
+      setResult({ ok: false, message: err.message || 'Analysis failed' });
     } finally {
       setIsLoading(false);
     }
@@ -37,13 +49,13 @@ export default function HomeScreen() {
     if (!result?.ok) return { ok: false, status: 422, message: 'No valid data to score' };
     
     try {
-      const { invokeEdgeFunction } = await import('@/utils/api');
+      const { invokeEdgeFunction } = await import('../../src/utils/api');
       const scoreResponse = await invokeEdgeFunction('score-supplement', { 
         data: { parsed: result.data } 
       });
       return scoreResponse;
-    } catch (error) {
-      return { ok: false, status: 500, message: error.message };
+    } catch (error: any) {
+      return { ok: false, status: 500, message: error?.message || 'Unknown error' };
     }
   };
   

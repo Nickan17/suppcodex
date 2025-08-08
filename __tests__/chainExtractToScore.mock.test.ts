@@ -1,22 +1,21 @@
-import { chainExtractToScore } from '../src/utils/chainExtractToScore.ts';
-import { ProductRecord } from '../src/contexts/ProductContext.tsx';
+import { chainExtractToScore, ChainResult } from '@/utils/chainExtractToScore';
 
 describe('chainExtractToScore (mocked)', () => {
   beforeAll(() => {
     process.env.EXPO_PUBLIC_USE_MOCK = '1';
   });
 
-  it('should return a valid ProductRecord in mock mode', async () => {
-    const record: ProductRecord = await chainExtractToScore('https://example.com');
+  it('should return a valid ChainResult in mock mode', async () => {
+    const result: ChainResult = await chainExtractToScore('https://example.com');
 
-    expect(record.productId).toBeTruthy();
-    expect(typeof record.productId).toBe('string');
+    expect(result.product).toBeTruthy();
+    expect(typeof result.product.title).toBe('string');
 
-    expect(record.productName).toBeTruthy();
-    expect(typeof record.productName).toBe('string');
+    expect(result.product.title).toBeTruthy();
+    expect(typeof result.product.title).toBe('string');
 
-    expect(Array.isArray(record.ingredients)).toBe(true);
-    expect(Array.isArray(record.meta?.chain)).toBe(true);
-    expect(record.meta.chain.length).toBeGreaterThan(0);
+    expect(Array.isArray(result.product.ingredients)).toBe(true);
+    expect(Array.isArray(result.meta?.chain)).toBe(true);
+    expect(result.meta.chain?.length).toBeGreaterThan(0);
   }, 10000);
 });

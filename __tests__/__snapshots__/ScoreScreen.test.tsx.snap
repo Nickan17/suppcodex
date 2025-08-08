@@ -1,0 +1,4853 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`ScoreScreen - Score Zero Case does not render ScoreGrid when score is null 1`] = `
+<RNCSafeAreaView
+  edges={
+    {
+      "bottom": "additive",
+      "left": "additive",
+      "right": "additive",
+      "top": "additive",
+    }
+  }
+  style={
+    [
+      {
+        "flex": 1,
+      },
+      {
+        "backgroundColor": "#FFFDF9",
+      },
+    ]
+  }
+>
+  <RCTScrollView
+    showsVerticalScrollIndicator={false}
+    style={
+      {
+        "flex": 1,
+      }
+    }
+  >
+    <View>
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "flexDirection": "row",
+            "justifyContent": "space-between",
+            "paddingHorizontal": 20,
+            "paddingVertical": 16,
+          }
+        }
+      >
+        <View
+          accessibilityState={
+            {
+              "busy": undefined,
+              "checked": undefined,
+              "disabled": undefined,
+              "expanded": undefined,
+              "selected": undefined,
+            }
+          }
+          accessibilityValue={
+            {
+              "max": undefined,
+              "min": undefined,
+              "now": undefined,
+              "text": undefined,
+            }
+          }
+          accessible={true}
+          collapsable={false}
+          focusable={true}
+          onClick={[Function]}
+          onResponderGrant={[Function]}
+          onResponderMove={[Function]}
+          onResponderRelease={[Function]}
+          onResponderTerminate={[Function]}
+          onResponderTerminationRequest={[Function]}
+          onStartShouldSetResponder={[Function]}
+          style={
+            {
+              "opacity": 1,
+            }
+          }
+        >
+          <Text
+            style={
+              [
+                {
+                  "fontSize": 24,
+                  "fontWeight": "600",
+                },
+                {
+                  "color": "#183A2B",
+                },
+              ]
+            }
+          >
+            ←
+          </Text>
+        </View>
+        <Text
+          style={
+            [
+              {
+                "fontSize": 20,
+                "fontWeight": "bold",
+              },
+              {
+                "color": "#D4A574",
+              },
+            ]
+          }
+        >
+          SuppCodex
+        </Text>
+        <View
+          style={
+            {
+              "width": 24,
+            }
+          }
+        />
+      </View>
+      <View
+        accessibilityState={
+          {
+            "busy": undefined,
+            "checked": undefined,
+            "disabled": undefined,
+            "expanded": undefined,
+            "selected": undefined,
+          }
+        }
+        accessibilityValue={
+          {
+            "max": undefined,
+            "min": undefined,
+            "now": undefined,
+            "text": undefined,
+          }
+        }
+        accessible={true}
+        collapsable={false}
+        focusable={true}
+        onClick={[Function]}
+        onResponderGrant={[Function]}
+        onResponderMove={[Function]}
+        onResponderRelease={[Function]}
+        onResponderTerminate={[Function]}
+        onResponderTerminationRequest={[Function]}
+        onStartShouldSetResponder={[Function]}
+        style={
+          {
+            "opacity": 1,
+          }
+        }
+      >
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "paddingVertical": 32,
+            }
+          }
+        >
+          <Text
+            style={
+              [
+                {
+                  "fontSize": 16,
+                  "lineHeight": 24,
+                  "opacity": 0.7,
+                  "paddingHorizontal": 32,
+                  "textAlign": "center",
+                },
+                {
+                  "color": "#183A2B",
+                  "fontFamily": "SFProRounded-Regular",
+                  "marginBottom": 32,
+                },
+              ]
+            }
+          >
+            Analysis complete
+          </Text>
+          <View
+            style={
+              [
+                {
+                  "alignItems": "center",
+                },
+                {
+                  "marginBottom": 16,
+                },
+              ]
+            }
+          >
+            <View
+              style={
+                {
+                  "alignItems": "center",
+                  "height": 200,
+                  "justifyContent": "center",
+                  "width": 200,
+                }
+              }
+            >
+              <RNSVGSvgView
+                bbHeight={200}
+                bbWidth={200}
+                focusable={false}
+                height={200}
+                style={
+                  [
+                    {
+                      "backgroundColor": "transparent",
+                      "borderWidth": 0,
+                    },
+                    {
+                      "flex": 0,
+                      "height": 200,
+                      "width": 200,
+                    },
+                  ]
+                }
+                width={200}
+              >
+                <RNSVGGroup
+                  fill={
+                    {
+                      "payload": 4278190080,
+                      "type": 0,
+                    }
+                  }
+                >
+                  <RNSVGCircle
+                    cx={100}
+                    cy={100}
+                    fill={null}
+                    propList={
+                      [
+                        "fill",
+                        "stroke",
+                        "strokeWidth",
+                      ]
+                    }
+                    r={94}
+                    stroke={
+                      {
+                        "payload": 4293257195,
+                        "type": 0,
+                      }
+                    }
+                    strokeWidth={12}
+                  />
+                  <RNSVGCircle
+                    cx={100}
+                    cy={100}
+                    fill={null}
+                    propList={
+                      [
+                        "fill",
+                        "stroke",
+                        "strokeWidth",
+                        "strokeDasharray",
+                        "strokeDashoffset",
+                        "strokeLinecap",
+                      ]
+                    }
+                    r={94}
+                    stroke={
+                      {
+                        "payload": 4293257195,
+                        "type": 0,
+                      }
+                    }
+                    strokeDasharray={
+                      [
+                        "590.6194188748811",
+                        "590.6194188748811",
+                      ]
+                    }
+                    strokeDashoffset={590.6194188748811}
+                    strokeLinecap={1}
+                    strokeWidth={12}
+                  />
+                </RNSVGGroup>
+              </RNSVGSvgView>
+              <View
+                style={
+                  {
+                    "alignItems": "center",
+                    "position": "absolute",
+                  }
+                }
+              >
+                <Text
+                  style={
+                    {
+                      "fontSize": 28,
+                      "fontWeight": "700",
+                    }
+                  }
+                >
+                  —
+                </Text>
+                <Text
+                  style={
+                    {
+                      "opacity": 0.7,
+                    }
+                  }
+                >
+                  — / 100
+                </Text>
+              </View>
+            </View>
+          </View>
+          <Text
+            style={
+              [
+                {
+                  "fontSize": 18,
+                  "opacity": 0.8,
+                  "textAlign": "center",
+                },
+                {
+                  "color": "#183A2B",
+                  "fontFamily": "SFProRounded-Regular",
+                },
+              ]
+            }
+          >
+            Test Product
+          </Text>
+        </View>
+      </View>
+      <View
+        style={
+          [
+            {
+              "paddingHorizontal": 16,
+            },
+            {
+              "gap": [
+                0,
+                4,
+                8,
+                12,
+                16,
+                24,
+                32,
+              ],
+            },
+          ]
+        }
+      >
+        <View
+          style={
+            [
+              {
+                "flexDirection": "row",
+              },
+              {
+                "gap": [
+                  0,
+                  4,
+                  8,
+                  12,
+                  16,
+                  24,
+                  32,
+                ],
+              },
+            ]
+          }
+        >
+          <View
+            style={
+              {
+                "flex": 1,
+              }
+            }
+          >
+            <View
+              style={
+                [
+                  {
+                    "padding": 16,
+                  },
+                  {
+                    "backgroundColor": "#FAFAFA",
+                    "borderRadius": 16,
+                  },
+                  {
+                    "minHeight": 120,
+                    "padding": 16,
+                  },
+                ]
+              }
+            >
+              <View
+                style={
+                  {
+                    "alignItems": "center",
+                    "flex": 1,
+                    "flexDirection": "row",
+                    "justifyContent": "space-between",
+                  }
+                }
+              >
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flex": 1,
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "marginBottom": 8,
+                        },
+                        {
+                          "fontSize": 48,
+                        },
+                      ]
+                    }
+                  >
+                    🍃
+                  </Text>
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 14,
+                          "textAlign": "center",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Regular",
+                        },
+                      ]
+                    }
+                  >
+                    Purity
+                  </Text>
+                </View>
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flexDirection": "row",
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 28,
+                          "fontWeight": "bold",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Bold",
+                        },
+                      ]
+                    }
+                  >
+                    0
+                  </Text>
+                  <Text
+                    style={
+                      {
+                        "fontSize": 20,
+                        "marginLeft": 4,
+                      }
+                    }
+                  >
+                    ✨
+                  </Text>
+                </View>
+              </View>
+              <View
+                style={
+                  [
+                    {
+                      "borderRadius": 2,
+                      "height": 4,
+                      "marginTop": 12,
+                    },
+                    {
+                      "backgroundColor": "rgba(0,0,0,0.05)",
+                    },
+                  ]
+                }
+              >
+                <View
+                  style={
+                    [
+                      {
+                        "height": "100%",
+                      },
+                      {
+                        "backgroundColor": "#B6F6C8",
+                        "borderRadius": 4,
+                        "width": "0%",
+                      },
+                    ]
+                  }
+                />
+              </View>
+            </View>
+          </View>
+          <View
+            style={
+              {
+                "flex": 1,
+              }
+            }
+          >
+            <View
+              style={
+                [
+                  {
+                    "padding": 16,
+                  },
+                  {
+                    "backgroundColor": "#FAFAFA",
+                    "borderRadius": 16,
+                  },
+                  {
+                    "minHeight": 120,
+                    "padding": 16,
+                  },
+                ]
+              }
+            >
+              <View
+                style={
+                  {
+                    "alignItems": "center",
+                    "flex": 1,
+                    "flexDirection": "row",
+                    "justifyContent": "space-between",
+                  }
+                }
+              >
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flex": 1,
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "marginBottom": 8,
+                        },
+                        {
+                          "fontSize": 48,
+                        },
+                      ]
+                    }
+                  >
+                    🔮
+                  </Text>
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 14,
+                          "textAlign": "center",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Regular",
+                        },
+                      ]
+                    }
+                  >
+                    Effectiveness
+                  </Text>
+                </View>
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flexDirection": "row",
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 28,
+                          "fontWeight": "bold",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Bold",
+                        },
+                      ]
+                    }
+                  >
+                    0
+                  </Text>
+                  <Text
+                    style={
+                      {
+                        "fontSize": 20,
+                        "marginLeft": 4,
+                      }
+                    }
+                  >
+                    ⚡
+                  </Text>
+                </View>
+              </View>
+              <View
+                style={
+                  [
+                    {
+                      "borderRadius": 2,
+                      "height": 4,
+                      "marginTop": 12,
+                    },
+                    {
+                      "backgroundColor": "rgba(0,0,0,0.05)",
+                    },
+                  ]
+                }
+              >
+                <View
+                  style={
+                    [
+                      {
+                        "height": "100%",
+                      },
+                      {
+                        "backgroundColor": "#E8D9FF",
+                        "borderRadius": 4,
+                        "width": "0%",
+                      },
+                    ]
+                  }
+                />
+              </View>
+            </View>
+          </View>
+        </View>
+        <View
+          style={
+            [
+              {
+                "flexDirection": "row",
+              },
+              {
+                "gap": [
+                  0,
+                  4,
+                  8,
+                  12,
+                  16,
+                  24,
+                  32,
+                ],
+              },
+            ]
+          }
+        >
+          <View
+            style={
+              {
+                "flex": 1,
+              }
+            }
+          >
+            <View
+              style={
+                [
+                  {
+                    "padding": 16,
+                  },
+                  {
+                    "backgroundColor": "#FAFAFA",
+                    "borderRadius": 16,
+                  },
+                  {
+                    "minHeight": 120,
+                    "padding": 16,
+                  },
+                ]
+              }
+            >
+              <View
+                style={
+                  {
+                    "alignItems": "center",
+                    "flex": 1,
+                    "flexDirection": "row",
+                    "justifyContent": "space-between",
+                  }
+                }
+              >
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flex": 1,
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "marginBottom": 8,
+                        },
+                        {
+                          "fontSize": 48,
+                        },
+                      ]
+                    }
+                  >
+                    🛡️
+                  </Text>
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 14,
+                          "textAlign": "center",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Regular",
+                        },
+                      ]
+                    }
+                  >
+                    Safety
+                  </Text>
+                </View>
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flexDirection": "row",
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 28,
+                          "fontWeight": "bold",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Bold",
+                        },
+                      ]
+                    }
+                  >
+                    2
+                  </Text>
+                  <Text
+                    style={
+                      {
+                        "fontSize": 20,
+                        "marginLeft": 4,
+                      }
+                    }
+                  >
+                    🛡️
+                  </Text>
+                </View>
+              </View>
+              <View
+                style={
+                  [
+                    {
+                      "borderRadius": 2,
+                      "height": 4,
+                      "marginTop": 12,
+                    },
+                    {
+                      "backgroundColor": "rgba(0,0,0,0.05)",
+                    },
+                  ]
+                }
+              >
+                <View
+                  style={
+                    [
+                      {
+                        "height": "100%",
+                      },
+                      {
+                        "backgroundColor": "#FF8A7A",
+                        "borderRadius": 4,
+                        "width": "2%",
+                      },
+                    ]
+                  }
+                />
+              </View>
+            </View>
+          </View>
+          <View
+            style={
+              {
+                "flex": 1,
+              }
+            }
+          >
+            <View
+              style={
+                [
+                  {
+                    "padding": 16,
+                  },
+                  {
+                    "backgroundColor": "#FAFAFA",
+                    "borderRadius": 16,
+                  },
+                  {
+                    "minHeight": 120,
+                    "padding": 16,
+                  },
+                ]
+              }
+            >
+              <View
+                style={
+                  {
+                    "alignItems": "center",
+                    "flex": 1,
+                    "flexDirection": "row",
+                    "justifyContent": "space-between",
+                  }
+                }
+              >
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flex": 1,
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "marginBottom": 8,
+                        },
+                        {
+                          "fontSize": 48,
+                        },
+                      ]
+                    }
+                  >
+                    💰
+                  </Text>
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 14,
+                          "textAlign": "center",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Regular",
+                        },
+                      ]
+                    }
+                  >
+                    Value
+                  </Text>
+                </View>
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flexDirection": "row",
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 28,
+                          "fontWeight": "bold",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Bold",
+                        },
+                      ]
+                    }
+                  >
+                    0
+                  </Text>
+                  <Text
+                    style={
+                      {
+                        "fontSize": 20,
+                        "marginLeft": 4,
+                      }
+                    }
+                  >
+                    💎
+                  </Text>
+                </View>
+              </View>
+              <View
+                style={
+                  [
+                    {
+                      "borderRadius": 2,
+                      "height": 4,
+                      "marginTop": 12,
+                    },
+                    {
+                      "backgroundColor": "rgba(0,0,0,0.05)",
+                    },
+                  ]
+                }
+              >
+                <View
+                  style={
+                    [
+                      {
+                        "height": "100%",
+                      },
+                      {
+                        "backgroundColor": "#FFD97A",
+                        "borderRadius": 4,
+                        "width": "0%",
+                      },
+                    ]
+                  }
+                />
+              </View>
+            </View>
+          </View>
+        </View>
+      </View>
+      <Text
+        style={
+          [
+            {
+              "fontSize": 18,
+              "fontWeight": "700",
+              "marginBottom": 8,
+              "marginHorizontal": 16,
+              "marginTop": 24,
+            },
+            {
+              "color": "#183A2B",
+            },
+          ]
+        }
+      >
+        What's great
+      </Text>
+      <View
+        style={
+          [
+            {
+              "marginBottom": 24,
+            },
+            {
+              "backgroundColor": "#242528",
+              "borderRadius": 14,
+              "marginHorizontal": 16,
+              "marginTop": 8,
+              "padding": 14,
+            },
+          ]
+        }
+      >
+        <Text
+          style={
+            [
+              {
+                "fontSize": 14,
+                "opacity": 0.8,
+                "textAlign": "center",
+              },
+              {
+                "color": "#BFC3C9",
+              },
+            ]
+          }
+        >
+          No highlights available for this supplement
+        </Text>
+      </View>
+      <Text
+        style={
+          [
+            {
+              "fontSize": 18,
+              "fontWeight": "700",
+              "marginBottom": 8,
+              "marginHorizontal": 16,
+              "marginTop": 24,
+            },
+            {
+              "color": "#183A2B",
+            },
+          ]
+        }
+      >
+        Worth a look
+      </Text>
+      <View
+        style={
+          [
+            {
+              "marginBottom": 24,
+            },
+            {
+              "backgroundColor": "#242528",
+              "borderRadius": 14,
+              "marginHorizontal": 16,
+              "marginTop": 8,
+              "padding": 14,
+            },
+          ]
+        }
+      >
+        <Text
+          style={
+            [
+              {
+                "fontSize": 14,
+                "opacity": 0.8,
+                "textAlign": "center",
+              },
+              {
+                "color": "#BFC3C9",
+              },
+            ]
+          }
+        >
+          No concerns identified for this supplement
+        </Text>
+      </View>
+      <View
+        style={
+          [
+            {
+              "padding": 16,
+            },
+            {
+              "backgroundColor": "#FAFAFA",
+              "borderRadius": 16,
+            },
+            [
+              {
+                "marginVertical": 16,
+                "padding": 24,
+              },
+              {
+                "marginHorizontal": 16,
+              },
+            ],
+          ]
+        }
+      >
+        <View
+          style={
+            {
+              "alignItems": "center",
+            }
+          }
+        >
+          <View
+            style={
+              {
+                "alignItems": "center",
+                "marginBottom": 20,
+              }
+            }
+          >
+            <Text
+              style={
+                {
+                  "fontSize": 32,
+                  "marginBottom": 8,
+                }
+              }
+            >
+              🦋
+            </Text>
+            <Text
+              style={
+                [
+                  {
+                    "fontSize": 18,
+                    "fontWeight": "bold",
+                    "textAlign": "center",
+                  },
+                  {
+                    "color": "#183A2B",
+                    "fontFamily": "SFProRounded-Bold",
+                  },
+                ]
+              }
+            >
+              Track Your Daily Supps
+            </Text>
+          </View>
+          <View
+            accessibilityRole="button"
+            accessibilityState={
+              {
+                "busy": undefined,
+                "checked": undefined,
+                "disabled": undefined,
+                "expanded": undefined,
+                "selected": undefined,
+              }
+            }
+            accessibilityValue={
+              {
+                "max": undefined,
+                "min": undefined,
+                "now": undefined,
+                "text": undefined,
+              }
+            }
+            accessible={true}
+            collapsable={false}
+            focusable={true}
+            onClick={[Function]}
+            onResponderGrant={[Function]}
+            onResponderMove={[Function]}
+            onResponderRelease={[Function]}
+            onResponderTerminate={[Function]}
+            onResponderTerminationRequest={[Function]}
+            onStartShouldSetResponder={[Function]}
+            style={
+              {
+                "alignItems": "center",
+                "backgroundColor": "#3584F6",
+                "borderRadius": 12,
+                "borderWidth": 0,
+                "flexDirection": "row",
+                "gap": 8,
+                "justifyContent": "center",
+                "opacity": 1,
+                "paddingHorizontal": 20,
+                "paddingVertical": 12,
+                "width": "100%",
+              }
+            }
+          >
+            <Text
+              style={
+                [
+                  {
+                    "color": "#FFFFFF",
+                    "fontFamily": "Inter-SemiBold",
+                    "fontSize": 16,
+                  },
+                  undefined,
+                ]
+              }
+            >
+              Add to My Stack
+            </Text>
+          </View>
+        </View>
+      </View>
+      <View
+        style={
+          {
+            "height": 40,
+          }
+        }
+      />
+    </View>
+  </RCTScrollView>
+</RNCSafeAreaView>
+`;
+
+exports[`ScoreScreen - Score Zero Case does not render ScoreGrid when score is undefined 1`] = `
+<RNCSafeAreaView
+  edges={
+    {
+      "bottom": "additive",
+      "left": "additive",
+      "right": "additive",
+      "top": "additive",
+    }
+  }
+  style={
+    [
+      {
+        "flex": 1,
+      },
+      {
+        "backgroundColor": "#FFFDF9",
+      },
+    ]
+  }
+>
+  <RCTScrollView
+    showsVerticalScrollIndicator={false}
+    style={
+      {
+        "flex": 1,
+      }
+    }
+  >
+    <View>
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "flexDirection": "row",
+            "justifyContent": "space-between",
+            "paddingHorizontal": 20,
+            "paddingVertical": 16,
+          }
+        }
+      >
+        <View
+          accessibilityState={
+            {
+              "busy": undefined,
+              "checked": undefined,
+              "disabled": undefined,
+              "expanded": undefined,
+              "selected": undefined,
+            }
+          }
+          accessibilityValue={
+            {
+              "max": undefined,
+              "min": undefined,
+              "now": undefined,
+              "text": undefined,
+            }
+          }
+          accessible={true}
+          collapsable={false}
+          focusable={true}
+          onClick={[Function]}
+          onResponderGrant={[Function]}
+          onResponderMove={[Function]}
+          onResponderRelease={[Function]}
+          onResponderTerminate={[Function]}
+          onResponderTerminationRequest={[Function]}
+          onStartShouldSetResponder={[Function]}
+          style={
+            {
+              "opacity": 1,
+            }
+          }
+        >
+          <Text
+            style={
+              [
+                {
+                  "fontSize": 24,
+                  "fontWeight": "600",
+                },
+                {
+                  "color": "#183A2B",
+                },
+              ]
+            }
+          >
+            ←
+          </Text>
+        </View>
+        <Text
+          style={
+            [
+              {
+                "fontSize": 20,
+                "fontWeight": "bold",
+              },
+              {
+                "color": "#D4A574",
+              },
+            ]
+          }
+        >
+          SuppCodex
+        </Text>
+        <View
+          style={
+            {
+              "width": 24,
+            }
+          }
+        />
+      </View>
+      <View
+        accessibilityState={
+          {
+            "busy": undefined,
+            "checked": undefined,
+            "disabled": undefined,
+            "expanded": undefined,
+            "selected": undefined,
+          }
+        }
+        accessibilityValue={
+          {
+            "max": undefined,
+            "min": undefined,
+            "now": undefined,
+            "text": undefined,
+          }
+        }
+        accessible={true}
+        collapsable={false}
+        focusable={true}
+        onClick={[Function]}
+        onResponderGrant={[Function]}
+        onResponderMove={[Function]}
+        onResponderRelease={[Function]}
+        onResponderTerminate={[Function]}
+        onResponderTerminationRequest={[Function]}
+        onStartShouldSetResponder={[Function]}
+        style={
+          {
+            "opacity": 1,
+          }
+        }
+      >
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "paddingVertical": 32,
+            }
+          }
+        >
+          <Text
+            style={
+              [
+                {
+                  "fontSize": 16,
+                  "lineHeight": 24,
+                  "opacity": 0.7,
+                  "paddingHorizontal": 32,
+                  "textAlign": "center",
+                },
+                {
+                  "color": "#183A2B",
+                  "fontFamily": "SFProRounded-Regular",
+                  "marginBottom": 32,
+                },
+              ]
+            }
+          >
+            Analysis complete
+          </Text>
+          <View
+            style={
+              [
+                {
+                  "alignItems": "center",
+                },
+                {
+                  "marginBottom": 16,
+                },
+              ]
+            }
+          >
+            <View
+              style={
+                {
+                  "alignItems": "center",
+                  "height": 200,
+                  "justifyContent": "center",
+                  "width": 200,
+                }
+              }
+            >
+              <RNSVGSvgView
+                bbHeight={200}
+                bbWidth={200}
+                focusable={false}
+                height={200}
+                style={
+                  [
+                    {
+                      "backgroundColor": "transparent",
+                      "borderWidth": 0,
+                    },
+                    {
+                      "flex": 0,
+                      "height": 200,
+                      "width": 200,
+                    },
+                  ]
+                }
+                width={200}
+              >
+                <RNSVGGroup
+                  fill={
+                    {
+                      "payload": 4278190080,
+                      "type": 0,
+                    }
+                  }
+                >
+                  <RNSVGCircle
+                    cx={100}
+                    cy={100}
+                    fill={null}
+                    propList={
+                      [
+                        "fill",
+                        "stroke",
+                        "strokeWidth",
+                      ]
+                    }
+                    r={94}
+                    stroke={
+                      {
+                        "payload": 4293257195,
+                        "type": 0,
+                      }
+                    }
+                    strokeWidth={12}
+                  />
+                  <RNSVGCircle
+                    cx={100}
+                    cy={100}
+                    fill={null}
+                    propList={
+                      [
+                        "fill",
+                        "stroke",
+                        "strokeWidth",
+                        "strokeDasharray",
+                        "strokeDashoffset",
+                        "strokeLinecap",
+                      ]
+                    }
+                    r={94}
+                    stroke={
+                      {
+                        "payload": 4293257195,
+                        "type": 0,
+                      }
+                    }
+                    strokeDasharray={
+                      [
+                        "590.6194188748811",
+                        "590.6194188748811",
+                      ]
+                    }
+                    strokeDashoffset={590.6194188748811}
+                    strokeLinecap={1}
+                    strokeWidth={12}
+                  />
+                </RNSVGGroup>
+              </RNSVGSvgView>
+              <View
+                style={
+                  {
+                    "alignItems": "center",
+                    "position": "absolute",
+                  }
+                }
+              >
+                <Text
+                  style={
+                    {
+                      "fontSize": 28,
+                      "fontWeight": "700",
+                    }
+                  }
+                >
+                  —
+                </Text>
+                <Text
+                  style={
+                    {
+                      "opacity": 0.7,
+                    }
+                  }
+                >
+                  — / 100
+                </Text>
+              </View>
+            </View>
+          </View>
+          <Text
+            style={
+              [
+                {
+                  "fontSize": 18,
+                  "opacity": 0.8,
+                  "textAlign": "center",
+                },
+                {
+                  "color": "#183A2B",
+                  "fontFamily": "SFProRounded-Regular",
+                },
+              ]
+            }
+          >
+            Test Product
+          </Text>
+        </View>
+      </View>
+      <View
+        style={
+          [
+            {
+              "paddingHorizontal": 16,
+            },
+            {
+              "gap": [
+                0,
+                4,
+                8,
+                12,
+                16,
+                24,
+                32,
+              ],
+            },
+          ]
+        }
+      >
+        <View
+          style={
+            [
+              {
+                "flexDirection": "row",
+              },
+              {
+                "gap": [
+                  0,
+                  4,
+                  8,
+                  12,
+                  16,
+                  24,
+                  32,
+                ],
+              },
+            ]
+          }
+        >
+          <View
+            style={
+              {
+                "flex": 1,
+              }
+            }
+          >
+            <View
+              style={
+                [
+                  {
+                    "padding": 16,
+                  },
+                  {
+                    "backgroundColor": "#FAFAFA",
+                    "borderRadius": 16,
+                  },
+                  {
+                    "minHeight": 120,
+                    "padding": 16,
+                  },
+                ]
+              }
+            >
+              <View
+                style={
+                  {
+                    "alignItems": "center",
+                    "flex": 1,
+                    "flexDirection": "row",
+                    "justifyContent": "space-between",
+                  }
+                }
+              >
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flex": 1,
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "marginBottom": 8,
+                        },
+                        {
+                          "fontSize": 48,
+                        },
+                      ]
+                    }
+                  >
+                    🍃
+                  </Text>
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 14,
+                          "textAlign": "center",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Regular",
+                        },
+                      ]
+                    }
+                  >
+                    Purity
+                  </Text>
+                </View>
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flexDirection": "row",
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 28,
+                          "fontWeight": "bold",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Bold",
+                        },
+                      ]
+                    }
+                  >
+                    0
+                  </Text>
+                  <Text
+                    style={
+                      {
+                        "fontSize": 20,
+                        "marginLeft": 4,
+                      }
+                    }
+                  >
+                    ✨
+                  </Text>
+                </View>
+              </View>
+              <View
+                style={
+                  [
+                    {
+                      "borderRadius": 2,
+                      "height": 4,
+                      "marginTop": 12,
+                    },
+                    {
+                      "backgroundColor": "rgba(0,0,0,0.05)",
+                    },
+                  ]
+                }
+              >
+                <View
+                  style={
+                    [
+                      {
+                        "height": "100%",
+                      },
+                      {
+                        "backgroundColor": "#B6F6C8",
+                        "borderRadius": 4,
+                        "width": "0%",
+                      },
+                    ]
+                  }
+                />
+              </View>
+            </View>
+          </View>
+          <View
+            style={
+              {
+                "flex": 1,
+              }
+            }
+          >
+            <View
+              style={
+                [
+                  {
+                    "padding": 16,
+                  },
+                  {
+                    "backgroundColor": "#FAFAFA",
+                    "borderRadius": 16,
+                  },
+                  {
+                    "minHeight": 120,
+                    "padding": 16,
+                  },
+                ]
+              }
+            >
+              <View
+                style={
+                  {
+                    "alignItems": "center",
+                    "flex": 1,
+                    "flexDirection": "row",
+                    "justifyContent": "space-between",
+                  }
+                }
+              >
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flex": 1,
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "marginBottom": 8,
+                        },
+                        {
+                          "fontSize": 48,
+                        },
+                      ]
+                    }
+                  >
+                    🔮
+                  </Text>
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 14,
+                          "textAlign": "center",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Regular",
+                        },
+                      ]
+                    }
+                  >
+                    Effectiveness
+                  </Text>
+                </View>
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flexDirection": "row",
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 28,
+                          "fontWeight": "bold",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Bold",
+                        },
+                      ]
+                    }
+                  >
+                    0
+                  </Text>
+                  <Text
+                    style={
+                      {
+                        "fontSize": 20,
+                        "marginLeft": 4,
+                      }
+                    }
+                  >
+                    ⚡
+                  </Text>
+                </View>
+              </View>
+              <View
+                style={
+                  [
+                    {
+                      "borderRadius": 2,
+                      "height": 4,
+                      "marginTop": 12,
+                    },
+                    {
+                      "backgroundColor": "rgba(0,0,0,0.05)",
+                    },
+                  ]
+                }
+              >
+                <View
+                  style={
+                    [
+                      {
+                        "height": "100%",
+                      },
+                      {
+                        "backgroundColor": "#E8D9FF",
+                        "borderRadius": 4,
+                        "width": "0%",
+                      },
+                    ]
+                  }
+                />
+              </View>
+            </View>
+          </View>
+        </View>
+        <View
+          style={
+            [
+              {
+                "flexDirection": "row",
+              },
+              {
+                "gap": [
+                  0,
+                  4,
+                  8,
+                  12,
+                  16,
+                  24,
+                  32,
+                ],
+              },
+            ]
+          }
+        >
+          <View
+            style={
+              {
+                "flex": 1,
+              }
+            }
+          >
+            <View
+              style={
+                [
+                  {
+                    "padding": 16,
+                  },
+                  {
+                    "backgroundColor": "#FAFAFA",
+                    "borderRadius": 16,
+                  },
+                  {
+                    "minHeight": 120,
+                    "padding": 16,
+                  },
+                ]
+              }
+            >
+              <View
+                style={
+                  {
+                    "alignItems": "center",
+                    "flex": 1,
+                    "flexDirection": "row",
+                    "justifyContent": "space-between",
+                  }
+                }
+              >
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flex": 1,
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "marginBottom": 8,
+                        },
+                        {
+                          "fontSize": 48,
+                        },
+                      ]
+                    }
+                  >
+                    🛡️
+                  </Text>
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 14,
+                          "textAlign": "center",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Regular",
+                        },
+                      ]
+                    }
+                  >
+                    Safety
+                  </Text>
+                </View>
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flexDirection": "row",
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 28,
+                          "fontWeight": "bold",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Bold",
+                        },
+                      ]
+                    }
+                  >
+                    2
+                  </Text>
+                  <Text
+                    style={
+                      {
+                        "fontSize": 20,
+                        "marginLeft": 4,
+                      }
+                    }
+                  >
+                    🛡️
+                  </Text>
+                </View>
+              </View>
+              <View
+                style={
+                  [
+                    {
+                      "borderRadius": 2,
+                      "height": 4,
+                      "marginTop": 12,
+                    },
+                    {
+                      "backgroundColor": "rgba(0,0,0,0.05)",
+                    },
+                  ]
+                }
+              >
+                <View
+                  style={
+                    [
+                      {
+                        "height": "100%",
+                      },
+                      {
+                        "backgroundColor": "#FF8A7A",
+                        "borderRadius": 4,
+                        "width": "2%",
+                      },
+                    ]
+                  }
+                />
+              </View>
+            </View>
+          </View>
+          <View
+            style={
+              {
+                "flex": 1,
+              }
+            }
+          >
+            <View
+              style={
+                [
+                  {
+                    "padding": 16,
+                  },
+                  {
+                    "backgroundColor": "#FAFAFA",
+                    "borderRadius": 16,
+                  },
+                  {
+                    "minHeight": 120,
+                    "padding": 16,
+                  },
+                ]
+              }
+            >
+              <View
+                style={
+                  {
+                    "alignItems": "center",
+                    "flex": 1,
+                    "flexDirection": "row",
+                    "justifyContent": "space-between",
+                  }
+                }
+              >
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flex": 1,
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "marginBottom": 8,
+                        },
+                        {
+                          "fontSize": 48,
+                        },
+                      ]
+                    }
+                  >
+                    💰
+                  </Text>
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 14,
+                          "textAlign": "center",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Regular",
+                        },
+                      ]
+                    }
+                  >
+                    Value
+                  </Text>
+                </View>
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flexDirection": "row",
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 28,
+                          "fontWeight": "bold",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Bold",
+                        },
+                      ]
+                    }
+                  >
+                    0
+                  </Text>
+                  <Text
+                    style={
+                      {
+                        "fontSize": 20,
+                        "marginLeft": 4,
+                      }
+                    }
+                  >
+                    💎
+                  </Text>
+                </View>
+              </View>
+              <View
+                style={
+                  [
+                    {
+                      "borderRadius": 2,
+                      "height": 4,
+                      "marginTop": 12,
+                    },
+                    {
+                      "backgroundColor": "rgba(0,0,0,0.05)",
+                    },
+                  ]
+                }
+              >
+                <View
+                  style={
+                    [
+                      {
+                        "height": "100%",
+                      },
+                      {
+                        "backgroundColor": "#FFD97A",
+                        "borderRadius": 4,
+                        "width": "0%",
+                      },
+                    ]
+                  }
+                />
+              </View>
+            </View>
+          </View>
+        </View>
+      </View>
+      <Text
+        style={
+          [
+            {
+              "fontSize": 18,
+              "fontWeight": "700",
+              "marginBottom": 8,
+              "marginHorizontal": 16,
+              "marginTop": 24,
+            },
+            {
+              "color": "#183A2B",
+            },
+          ]
+        }
+      >
+        What's great
+      </Text>
+      <View
+        style={
+          [
+            {
+              "marginBottom": 24,
+            },
+            {
+              "backgroundColor": "#242528",
+              "borderRadius": 14,
+              "marginHorizontal": 16,
+              "marginTop": 8,
+              "padding": 14,
+            },
+          ]
+        }
+      >
+        <Text
+          style={
+            [
+              {
+                "fontSize": 14,
+                "opacity": 0.8,
+                "textAlign": "center",
+              },
+              {
+                "color": "#BFC3C9",
+              },
+            ]
+          }
+        >
+          No highlights available for this supplement
+        </Text>
+      </View>
+      <Text
+        style={
+          [
+            {
+              "fontSize": 18,
+              "fontWeight": "700",
+              "marginBottom": 8,
+              "marginHorizontal": 16,
+              "marginTop": 24,
+            },
+            {
+              "color": "#183A2B",
+            },
+          ]
+        }
+      >
+        Worth a look
+      </Text>
+      <View
+        style={
+          [
+            {
+              "marginBottom": 24,
+            },
+            {
+              "backgroundColor": "#242528",
+              "borderRadius": 14,
+              "marginHorizontal": 16,
+              "marginTop": 8,
+              "padding": 14,
+            },
+          ]
+        }
+      >
+        <Text
+          style={
+            [
+              {
+                "fontSize": 14,
+                "opacity": 0.8,
+                "textAlign": "center",
+              },
+              {
+                "color": "#BFC3C9",
+              },
+            ]
+          }
+        >
+          No concerns identified for this supplement
+        </Text>
+      </View>
+      <View
+        style={
+          [
+            {
+              "padding": 16,
+            },
+            {
+              "backgroundColor": "#FAFAFA",
+              "borderRadius": 16,
+            },
+            [
+              {
+                "marginVertical": 16,
+                "padding": 24,
+              },
+              {
+                "marginHorizontal": 16,
+              },
+            ],
+          ]
+        }
+      >
+        <View
+          style={
+            {
+              "alignItems": "center",
+            }
+          }
+        >
+          <View
+            style={
+              {
+                "alignItems": "center",
+                "marginBottom": 20,
+              }
+            }
+          >
+            <Text
+              style={
+                {
+                  "fontSize": 32,
+                  "marginBottom": 8,
+                }
+              }
+            >
+              🦋
+            </Text>
+            <Text
+              style={
+                [
+                  {
+                    "fontSize": 18,
+                    "fontWeight": "bold",
+                    "textAlign": "center",
+                  },
+                  {
+                    "color": "#183A2B",
+                    "fontFamily": "SFProRounded-Bold",
+                  },
+                ]
+              }
+            >
+              Track Your Daily Supps
+            </Text>
+          </View>
+          <View
+            accessibilityRole="button"
+            accessibilityState={
+              {
+                "busy": undefined,
+                "checked": undefined,
+                "disabled": undefined,
+                "expanded": undefined,
+                "selected": undefined,
+              }
+            }
+            accessibilityValue={
+              {
+                "max": undefined,
+                "min": undefined,
+                "now": undefined,
+                "text": undefined,
+              }
+            }
+            accessible={true}
+            collapsable={false}
+            focusable={true}
+            onClick={[Function]}
+            onResponderGrant={[Function]}
+            onResponderMove={[Function]}
+            onResponderRelease={[Function]}
+            onResponderTerminate={[Function]}
+            onResponderTerminationRequest={[Function]}
+            onStartShouldSetResponder={[Function]}
+            style={
+              {
+                "alignItems": "center",
+                "backgroundColor": "#3584F6",
+                "borderRadius": 12,
+                "borderWidth": 0,
+                "flexDirection": "row",
+                "gap": 8,
+                "justifyContent": "center",
+                "opacity": 1,
+                "paddingHorizontal": 20,
+                "paddingVertical": 12,
+                "width": "100%",
+              }
+            }
+          >
+            <Text
+              style={
+                [
+                  {
+                    "color": "#FFFFFF",
+                    "fontFamily": "Inter-SemiBold",
+                    "fontSize": 16,
+                  },
+                  undefined,
+                ]
+              }
+            >
+              Add to My Stack
+            </Text>
+          </View>
+        </View>
+      </View>
+      <View
+        style={
+          {
+            "height": 40,
+          }
+        }
+      />
+    </View>
+  </RCTScrollView>
+</RNCSafeAreaView>
+`;
+
+exports[`ScoreScreen - Score Zero Case renders ScoreGrid when score is 0 1`] = `
+<RNCSafeAreaView
+  edges={
+    {
+      "bottom": "additive",
+      "left": "additive",
+      "right": "additive",
+      "top": "additive",
+    }
+  }
+  style={
+    [
+      {
+        "flex": 1,
+      },
+      {
+        "backgroundColor": "#FFFDF9",
+      },
+    ]
+  }
+>
+  <RCTScrollView
+    showsVerticalScrollIndicator={false}
+    style={
+      {
+        "flex": 1,
+      }
+    }
+  >
+    <View>
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "flexDirection": "row",
+            "justifyContent": "space-between",
+            "paddingHorizontal": 20,
+            "paddingVertical": 16,
+          }
+        }
+      >
+        <View
+          accessibilityState={
+            {
+              "busy": undefined,
+              "checked": undefined,
+              "disabled": undefined,
+              "expanded": undefined,
+              "selected": undefined,
+            }
+          }
+          accessibilityValue={
+            {
+              "max": undefined,
+              "min": undefined,
+              "now": undefined,
+              "text": undefined,
+            }
+          }
+          accessible={true}
+          collapsable={false}
+          focusable={true}
+          onClick={[Function]}
+          onResponderGrant={[Function]}
+          onResponderMove={[Function]}
+          onResponderRelease={[Function]}
+          onResponderTerminate={[Function]}
+          onResponderTerminationRequest={[Function]}
+          onStartShouldSetResponder={[Function]}
+          style={
+            {
+              "opacity": 1,
+            }
+          }
+        >
+          <Text
+            style={
+              [
+                {
+                  "fontSize": 24,
+                  "fontWeight": "600",
+                },
+                {
+                  "color": "#183A2B",
+                },
+              ]
+            }
+          >
+            ←
+          </Text>
+        </View>
+        <Text
+          style={
+            [
+              {
+                "fontSize": 20,
+                "fontWeight": "bold",
+              },
+              {
+                "color": "#D4A574",
+              },
+            ]
+          }
+        >
+          SuppCodex
+        </Text>
+        <View
+          style={
+            {
+              "width": 24,
+            }
+          }
+        />
+      </View>
+      <View
+        accessibilityState={
+          {
+            "busy": undefined,
+            "checked": undefined,
+            "disabled": undefined,
+            "expanded": undefined,
+            "selected": undefined,
+          }
+        }
+        accessibilityValue={
+          {
+            "max": undefined,
+            "min": undefined,
+            "now": undefined,
+            "text": undefined,
+          }
+        }
+        accessible={true}
+        collapsable={false}
+        focusable={true}
+        onClick={[Function]}
+        onResponderGrant={[Function]}
+        onResponderMove={[Function]}
+        onResponderRelease={[Function]}
+        onResponderTerminate={[Function]}
+        onResponderTerminationRequest={[Function]}
+        onStartShouldSetResponder={[Function]}
+        style={
+          {
+            "opacity": 1,
+          }
+        }
+      >
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "paddingVertical": 32,
+            }
+          }
+        >
+          <Text
+            style={
+              [
+                {
+                  "fontSize": 16,
+                  "lineHeight": 24,
+                  "opacity": 0.7,
+                  "paddingHorizontal": 32,
+                  "textAlign": "center",
+                },
+                {
+                  "color": "#183A2B",
+                  "fontFamily": "SFProRounded-Regular",
+                  "marginBottom": 32,
+                },
+              ]
+            }
+          >
+            Analysis complete
+          </Text>
+          <View
+            style={
+              [
+                {
+                  "alignItems": "center",
+                },
+                {
+                  "marginBottom": 16,
+                },
+              ]
+            }
+          >
+            <View
+              style={
+                {
+                  "alignItems": "center",
+                  "height": 200,
+                  "justifyContent": "center",
+                  "width": 200,
+                }
+              }
+            >
+              <RNSVGSvgView
+                bbHeight={200}
+                bbWidth={200}
+                focusable={false}
+                height={200}
+                style={
+                  [
+                    {
+                      "backgroundColor": "transparent",
+                      "borderWidth": 0,
+                    },
+                    {
+                      "flex": 0,
+                      "height": 200,
+                      "width": 200,
+                    },
+                  ]
+                }
+                width={200}
+              >
+                <RNSVGGroup
+                  fill={
+                    {
+                      "payload": 4278190080,
+                      "type": 0,
+                    }
+                  }
+                >
+                  <RNSVGCircle
+                    cx={100}
+                    cy={100}
+                    fill={null}
+                    propList={
+                      [
+                        "fill",
+                        "stroke",
+                        "strokeWidth",
+                      ]
+                    }
+                    r={94}
+                    stroke={
+                      {
+                        "payload": 4293257195,
+                        "type": 0,
+                      }
+                    }
+                    strokeWidth={12}
+                  />
+                  <RNSVGCircle
+                    cx={100}
+                    cy={100}
+                    fill={null}
+                    propList={
+                      [
+                        "fill",
+                        "stroke",
+                        "strokeWidth",
+                        "strokeDasharray",
+                        "strokeDashoffset",
+                        "strokeLinecap",
+                      ]
+                    }
+                    r={94}
+                    stroke={
+                      {
+                        "payload": 4293257195,
+                        "type": 0,
+                      }
+                    }
+                    strokeDasharray={
+                      [
+                        "590.6194188748811",
+                        "590.6194188748811",
+                      ]
+                    }
+                    strokeDashoffset={590.6194188748811}
+                    strokeLinecap={1}
+                    strokeWidth={12}
+                  />
+                </RNSVGGroup>
+              </RNSVGSvgView>
+              <View
+                style={
+                  {
+                    "alignItems": "center",
+                    "position": "absolute",
+                  }
+                }
+              >
+                <Text
+                  style={
+                    {
+                      "fontSize": 28,
+                      "fontWeight": "700",
+                    }
+                  }
+                >
+                  —
+                </Text>
+                <Text
+                  style={
+                    {
+                      "opacity": 0.7,
+                    }
+                  }
+                >
+                  — / 100
+                </Text>
+              </View>
+            </View>
+          </View>
+          <Text
+            style={
+              [
+                {
+                  "fontSize": 18,
+                  "opacity": 0.8,
+                  "textAlign": "center",
+                },
+                {
+                  "color": "#183A2B",
+                  "fontFamily": "SFProRounded-Regular",
+                },
+              ]
+            }
+          >
+            Magnum Quattro
+          </Text>
+        </View>
+      </View>
+      <View
+        style={
+          [
+            {
+              "paddingHorizontal": 16,
+            },
+            {
+              "gap": [
+                0,
+                4,
+                8,
+                12,
+                16,
+                24,
+                32,
+              ],
+            },
+          ]
+        }
+      >
+        <View
+          style={
+            [
+              {
+                "flexDirection": "row",
+              },
+              {
+                "gap": [
+                  0,
+                  4,
+                  8,
+                  12,
+                  16,
+                  24,
+                  32,
+                ],
+              },
+            ]
+          }
+        >
+          <View
+            style={
+              {
+                "flex": 1,
+              }
+            }
+          >
+            <View
+              style={
+                [
+                  {
+                    "padding": 16,
+                  },
+                  {
+                    "backgroundColor": "#FAFAFA",
+                    "borderRadius": 16,
+                  },
+                  {
+                    "minHeight": 120,
+                    "padding": 16,
+                  },
+                ]
+              }
+            >
+              <View
+                style={
+                  {
+                    "alignItems": "center",
+                    "flex": 1,
+                    "flexDirection": "row",
+                    "justifyContent": "space-between",
+                  }
+                }
+              >
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flex": 1,
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "marginBottom": 8,
+                        },
+                        {
+                          "fontSize": 48,
+                        },
+                      ]
+                    }
+                  >
+                    🍃
+                  </Text>
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 14,
+                          "textAlign": "center",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Regular",
+                        },
+                      ]
+                    }
+                  >
+                    Purity
+                  </Text>
+                </View>
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flexDirection": "row",
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 28,
+                          "fontWeight": "bold",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Bold",
+                        },
+                      ]
+                    }
+                  >
+                    0
+                  </Text>
+                  <Text
+                    style={
+                      {
+                        "fontSize": 20,
+                        "marginLeft": 4,
+                      }
+                    }
+                  >
+                    ✨
+                  </Text>
+                </View>
+              </View>
+              <View
+                style={
+                  [
+                    {
+                      "borderRadius": 2,
+                      "height": 4,
+                      "marginTop": 12,
+                    },
+                    {
+                      "backgroundColor": "rgba(0,0,0,0.05)",
+                    },
+                  ]
+                }
+              >
+                <View
+                  style={
+                    [
+                      {
+                        "height": "100%",
+                      },
+                      {
+                        "backgroundColor": "#B6F6C8",
+                        "borderRadius": 4,
+                        "width": "0%",
+                      },
+                    ]
+                  }
+                />
+              </View>
+            </View>
+          </View>
+          <View
+            style={
+              {
+                "flex": 1,
+              }
+            }
+          >
+            <View
+              style={
+                [
+                  {
+                    "padding": 16,
+                  },
+                  {
+                    "backgroundColor": "#FAFAFA",
+                    "borderRadius": 16,
+                  },
+                  {
+                    "minHeight": 120,
+                    "padding": 16,
+                  },
+                ]
+              }
+            >
+              <View
+                style={
+                  {
+                    "alignItems": "center",
+                    "flex": 1,
+                    "flexDirection": "row",
+                    "justifyContent": "space-between",
+                  }
+                }
+              >
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flex": 1,
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "marginBottom": 8,
+                        },
+                        {
+                          "fontSize": 48,
+                        },
+                      ]
+                    }
+                  >
+                    🔮
+                  </Text>
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 14,
+                          "textAlign": "center",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Regular",
+                        },
+                      ]
+                    }
+                  >
+                    Effectiveness
+                  </Text>
+                </View>
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flexDirection": "row",
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 28,
+                          "fontWeight": "bold",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Bold",
+                        },
+                      ]
+                    }
+                  >
+                    0
+                  </Text>
+                  <Text
+                    style={
+                      {
+                        "fontSize": 20,
+                        "marginLeft": 4,
+                      }
+                    }
+                  >
+                    ⚡
+                  </Text>
+                </View>
+              </View>
+              <View
+                style={
+                  [
+                    {
+                      "borderRadius": 2,
+                      "height": 4,
+                      "marginTop": 12,
+                    },
+                    {
+                      "backgroundColor": "rgba(0,0,0,0.05)",
+                    },
+                  ]
+                }
+              >
+                <View
+                  style={
+                    [
+                      {
+                        "height": "100%",
+                      },
+                      {
+                        "backgroundColor": "#E8D9FF",
+                        "borderRadius": 4,
+                        "width": "0%",
+                      },
+                    ]
+                  }
+                />
+              </View>
+            </View>
+          </View>
+        </View>
+        <View
+          style={
+            [
+              {
+                "flexDirection": "row",
+              },
+              {
+                "gap": [
+                  0,
+                  4,
+                  8,
+                  12,
+                  16,
+                  24,
+                  32,
+                ],
+              },
+            ]
+          }
+        >
+          <View
+            style={
+              {
+                "flex": 1,
+              }
+            }
+          >
+            <View
+              style={
+                [
+                  {
+                    "padding": 16,
+                  },
+                  {
+                    "backgroundColor": "#FAFAFA",
+                    "borderRadius": 16,
+                  },
+                  {
+                    "minHeight": 120,
+                    "padding": 16,
+                  },
+                ]
+              }
+            >
+              <View
+                style={
+                  {
+                    "alignItems": "center",
+                    "flex": 1,
+                    "flexDirection": "row",
+                    "justifyContent": "space-between",
+                  }
+                }
+              >
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flex": 1,
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "marginBottom": 8,
+                        },
+                        {
+                          "fontSize": 48,
+                        },
+                      ]
+                    }
+                  >
+                    🛡️
+                  </Text>
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 14,
+                          "textAlign": "center",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Regular",
+                        },
+                      ]
+                    }
+                  >
+                    Safety
+                  </Text>
+                </View>
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flexDirection": "row",
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 28,
+                          "fontWeight": "bold",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Bold",
+                        },
+                      ]
+                    }
+                  >
+                    2
+                  </Text>
+                  <Text
+                    style={
+                      {
+                        "fontSize": 20,
+                        "marginLeft": 4,
+                      }
+                    }
+                  >
+                    🛡️
+                  </Text>
+                </View>
+              </View>
+              <View
+                style={
+                  [
+                    {
+                      "borderRadius": 2,
+                      "height": 4,
+                      "marginTop": 12,
+                    },
+                    {
+                      "backgroundColor": "rgba(0,0,0,0.05)",
+                    },
+                  ]
+                }
+              >
+                <View
+                  style={
+                    [
+                      {
+                        "height": "100%",
+                      },
+                      {
+                        "backgroundColor": "#FF8A7A",
+                        "borderRadius": 4,
+                        "width": "2%",
+                      },
+                    ]
+                  }
+                />
+              </View>
+            </View>
+          </View>
+          <View
+            style={
+              {
+                "flex": 1,
+              }
+            }
+          >
+            <View
+              style={
+                [
+                  {
+                    "padding": 16,
+                  },
+                  {
+                    "backgroundColor": "#FAFAFA",
+                    "borderRadius": 16,
+                  },
+                  {
+                    "minHeight": 120,
+                    "padding": 16,
+                  },
+                ]
+              }
+            >
+              <View
+                style={
+                  {
+                    "alignItems": "center",
+                    "flex": 1,
+                    "flexDirection": "row",
+                    "justifyContent": "space-between",
+                  }
+                }
+              >
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flex": 1,
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "marginBottom": 8,
+                        },
+                        {
+                          "fontSize": 48,
+                        },
+                      ]
+                    }
+                  >
+                    💰
+                  </Text>
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 14,
+                          "textAlign": "center",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Regular",
+                        },
+                      ]
+                    }
+                  >
+                    Value
+                  </Text>
+                </View>
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flexDirection": "row",
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 28,
+                          "fontWeight": "bold",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Bold",
+                        },
+                      ]
+                    }
+                  >
+                    0
+                  </Text>
+                  <Text
+                    style={
+                      {
+                        "fontSize": 20,
+                        "marginLeft": 4,
+                      }
+                    }
+                  >
+                    💎
+                  </Text>
+                </View>
+              </View>
+              <View
+                style={
+                  [
+                    {
+                      "borderRadius": 2,
+                      "height": 4,
+                      "marginTop": 12,
+                    },
+                    {
+                      "backgroundColor": "rgba(0,0,0,0.05)",
+                    },
+                  ]
+                }
+              >
+                <View
+                  style={
+                    [
+                      {
+                        "height": "100%",
+                      },
+                      {
+                        "backgroundColor": "#FFD97A",
+                        "borderRadius": 4,
+                        "width": "0%",
+                      },
+                    ]
+                  }
+                />
+              </View>
+            </View>
+          </View>
+        </View>
+      </View>
+      <Text
+        style={
+          [
+            {
+              "fontSize": 18,
+              "fontWeight": "700",
+              "marginBottom": 8,
+              "marginHorizontal": 16,
+              "marginTop": 24,
+            },
+            {
+              "color": "#183A2B",
+            },
+          ]
+        }
+      >
+        What's great
+      </Text>
+      <View
+        style={
+          [
+            {
+              "marginBottom": 24,
+            },
+            {
+              "backgroundColor": "#242528",
+              "borderRadius": 14,
+              "marginHorizontal": 16,
+              "marginTop": 8,
+              "padding": 14,
+            },
+          ]
+        }
+      >
+        <View
+          style={
+            {
+              "alignItems": "flex-start",
+              "flexDirection": "row",
+              "marginBottom": 8,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "fontSize": 16,
+                "lineHeight": 22,
+                "marginRight": 12,
+              }
+            }
+          >
+            ✨
+          </Text>
+          <Text
+            style={
+              [
+                {
+                  "flex": 1,
+                  "fontSize": 14,
+                  "lineHeight": 20,
+                },
+                {
+                  "color": "#F4F5F6",
+                },
+              ]
+            }
+          >
+            Some highlight
+          </Text>
+        </View>
+      </View>
+      <Text
+        style={
+          [
+            {
+              "fontSize": 18,
+              "fontWeight": "700",
+              "marginBottom": 8,
+              "marginHorizontal": 16,
+              "marginTop": 24,
+            },
+            {
+              "color": "#183A2B",
+            },
+          ]
+        }
+      >
+        Worth a look
+      </Text>
+      <View
+        style={
+          [
+            {
+              "marginBottom": 24,
+            },
+            {
+              "backgroundColor": "#242528",
+              "borderRadius": 14,
+              "marginHorizontal": 16,
+              "marginTop": 8,
+              "padding": 14,
+            },
+          ]
+        }
+      >
+        <View
+          style={
+            {
+              "alignItems": "flex-start",
+              "flexDirection": "row",
+              "marginBottom": 8,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "fontSize": 16,
+                "lineHeight": 22,
+                "marginRight": 12,
+              }
+            }
+          >
+            ⚠️
+          </Text>
+          <Text
+            style={
+              [
+                {
+                  "flex": 1,
+                  "fontSize": 14,
+                  "lineHeight": 20,
+                },
+                {
+                  "color": "#F4F5F6",
+                },
+              ]
+            }
+          >
+            Some concern
+          </Text>
+        </View>
+      </View>
+      <View
+        style={
+          [
+            {
+              "padding": 16,
+            },
+            {
+              "backgroundColor": "#FAFAFA",
+              "borderRadius": 16,
+            },
+            [
+              {
+                "marginVertical": 16,
+                "padding": 24,
+              },
+              {
+                "marginHorizontal": 16,
+              },
+            ],
+          ]
+        }
+      >
+        <View
+          style={
+            {
+              "alignItems": "center",
+            }
+          }
+        >
+          <View
+            style={
+              {
+                "alignItems": "center",
+                "marginBottom": 20,
+              }
+            }
+          >
+            <Text
+              style={
+                {
+                  "fontSize": 32,
+                  "marginBottom": 8,
+                }
+              }
+            >
+              🦋
+            </Text>
+            <Text
+              style={
+                [
+                  {
+                    "fontSize": 18,
+                    "fontWeight": "bold",
+                    "textAlign": "center",
+                  },
+                  {
+                    "color": "#183A2B",
+                    "fontFamily": "SFProRounded-Bold",
+                  },
+                ]
+              }
+            >
+              Track Your Daily Supps
+            </Text>
+          </View>
+          <View
+            accessibilityRole="button"
+            accessibilityState={
+              {
+                "busy": undefined,
+                "checked": undefined,
+                "disabled": undefined,
+                "expanded": undefined,
+                "selected": undefined,
+              }
+            }
+            accessibilityValue={
+              {
+                "max": undefined,
+                "min": undefined,
+                "now": undefined,
+                "text": undefined,
+              }
+            }
+            accessible={true}
+            collapsable={false}
+            focusable={true}
+            onClick={[Function]}
+            onResponderGrant={[Function]}
+            onResponderMove={[Function]}
+            onResponderRelease={[Function]}
+            onResponderTerminate={[Function]}
+            onResponderTerminationRequest={[Function]}
+            onStartShouldSetResponder={[Function]}
+            style={
+              {
+                "alignItems": "center",
+                "backgroundColor": "#3584F6",
+                "borderRadius": 12,
+                "borderWidth": 0,
+                "flexDirection": "row",
+                "gap": 8,
+                "justifyContent": "center",
+                "opacity": 1,
+                "paddingHorizontal": 20,
+                "paddingVertical": 12,
+                "width": "100%",
+              }
+            }
+          >
+            <Text
+              style={
+                [
+                  {
+                    "color": "#FFFFFF",
+                    "fontFamily": "Inter-SemiBold",
+                    "fontSize": 16,
+                  },
+                  undefined,
+                ]
+              }
+            >
+              Add to My Stack
+            </Text>
+          </View>
+        </View>
+      </View>
+      <View
+        style={
+          {
+            "height": 40,
+          }
+        }
+      />
+    </View>
+  </RCTScrollView>
+</RNCSafeAreaView>
+`;
+
+exports[`ScoreScreen - Score Zero Case renders ScoreGrid with correct sub-scores when score is 0 1`] = `
+<RNCSafeAreaView
+  edges={
+    {
+      "bottom": "additive",
+      "left": "additive",
+      "right": "additive",
+      "top": "additive",
+    }
+  }
+  style={
+    [
+      {
+        "flex": 1,
+      },
+      {
+        "backgroundColor": "#FFFDF9",
+      },
+    ]
+  }
+>
+  <RCTScrollView
+    showsVerticalScrollIndicator={false}
+    style={
+      {
+        "flex": 1,
+      }
+    }
+  >
+    <View>
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "flexDirection": "row",
+            "justifyContent": "space-between",
+            "paddingHorizontal": 20,
+            "paddingVertical": 16,
+          }
+        }
+      >
+        <View
+          accessibilityState={
+            {
+              "busy": undefined,
+              "checked": undefined,
+              "disabled": undefined,
+              "expanded": undefined,
+              "selected": undefined,
+            }
+          }
+          accessibilityValue={
+            {
+              "max": undefined,
+              "min": undefined,
+              "now": undefined,
+              "text": undefined,
+            }
+          }
+          accessible={true}
+          collapsable={false}
+          focusable={true}
+          onClick={[Function]}
+          onResponderGrant={[Function]}
+          onResponderMove={[Function]}
+          onResponderRelease={[Function]}
+          onResponderTerminate={[Function]}
+          onResponderTerminationRequest={[Function]}
+          onStartShouldSetResponder={[Function]}
+          style={
+            {
+              "opacity": 1,
+            }
+          }
+        >
+          <Text
+            style={
+              [
+                {
+                  "fontSize": 24,
+                  "fontWeight": "600",
+                },
+                {
+                  "color": "#183A2B",
+                },
+              ]
+            }
+          >
+            ←
+          </Text>
+        </View>
+        <Text
+          style={
+            [
+              {
+                "fontSize": 20,
+                "fontWeight": "bold",
+              },
+              {
+                "color": "#D4A574",
+              },
+            ]
+          }
+        >
+          SuppCodex
+        </Text>
+        <View
+          style={
+            {
+              "width": 24,
+            }
+          }
+        />
+      </View>
+      <View
+        accessibilityState={
+          {
+            "busy": undefined,
+            "checked": undefined,
+            "disabled": undefined,
+            "expanded": undefined,
+            "selected": undefined,
+          }
+        }
+        accessibilityValue={
+          {
+            "max": undefined,
+            "min": undefined,
+            "now": undefined,
+            "text": undefined,
+          }
+        }
+        accessible={true}
+        collapsable={false}
+        focusable={true}
+        onClick={[Function]}
+        onResponderGrant={[Function]}
+        onResponderMove={[Function]}
+        onResponderRelease={[Function]}
+        onResponderTerminate={[Function]}
+        onResponderTerminationRequest={[Function]}
+        onStartShouldSetResponder={[Function]}
+        style={
+          {
+            "opacity": 1,
+          }
+        }
+      >
+        <View
+          style={
+            {
+              "alignItems": "center",
+              "paddingVertical": 32,
+            }
+          }
+        >
+          <Text
+            style={
+              [
+                {
+                  "fontSize": 16,
+                  "lineHeight": 24,
+                  "opacity": 0.7,
+                  "paddingHorizontal": 32,
+                  "textAlign": "center",
+                },
+                {
+                  "color": "#183A2B",
+                  "fontFamily": "SFProRounded-Regular",
+                  "marginBottom": 32,
+                },
+              ]
+            }
+          >
+            Analysis complete
+          </Text>
+          <View
+            style={
+              [
+                {
+                  "alignItems": "center",
+                },
+                {
+                  "marginBottom": 16,
+                },
+              ]
+            }
+          >
+            <View
+              style={
+                {
+                  "alignItems": "center",
+                  "height": 200,
+                  "justifyContent": "center",
+                  "width": 200,
+                }
+              }
+            >
+              <RNSVGSvgView
+                bbHeight={200}
+                bbWidth={200}
+                focusable={false}
+                height={200}
+                style={
+                  [
+                    {
+                      "backgroundColor": "transparent",
+                      "borderWidth": 0,
+                    },
+                    {
+                      "flex": 0,
+                      "height": 200,
+                      "width": 200,
+                    },
+                  ]
+                }
+                width={200}
+              >
+                <RNSVGGroup
+                  fill={
+                    {
+                      "payload": 4278190080,
+                      "type": 0,
+                    }
+                  }
+                >
+                  <RNSVGCircle
+                    cx={100}
+                    cy={100}
+                    fill={null}
+                    propList={
+                      [
+                        "fill",
+                        "stroke",
+                        "strokeWidth",
+                      ]
+                    }
+                    r={94}
+                    stroke={
+                      {
+                        "payload": 4293257195,
+                        "type": 0,
+                      }
+                    }
+                    strokeWidth={12}
+                  />
+                  <RNSVGCircle
+                    cx={100}
+                    cy={100}
+                    fill={null}
+                    propList={
+                      [
+                        "fill",
+                        "stroke",
+                        "strokeWidth",
+                        "strokeDasharray",
+                        "strokeDashoffset",
+                        "strokeLinecap",
+                      ]
+                    }
+                    r={94}
+                    stroke={
+                      {
+                        "payload": 4293257195,
+                        "type": 0,
+                      }
+                    }
+                    strokeDasharray={
+                      [
+                        "590.6194188748811",
+                        "590.6194188748811",
+                      ]
+                    }
+                    strokeDashoffset={590.6194188748811}
+                    strokeLinecap={1}
+                    strokeWidth={12}
+                  />
+                </RNSVGGroup>
+              </RNSVGSvgView>
+              <View
+                style={
+                  {
+                    "alignItems": "center",
+                    "position": "absolute",
+                  }
+                }
+              >
+                <Text
+                  style={
+                    {
+                      "fontSize": 28,
+                      "fontWeight": "700",
+                    }
+                  }
+                >
+                  —
+                </Text>
+                <Text
+                  style={
+                    {
+                      "opacity": 0.7,
+                    }
+                  }
+                >
+                  — / 100
+                </Text>
+              </View>
+            </View>
+          </View>
+          <Text
+            style={
+              [
+                {
+                  "fontSize": 18,
+                  "opacity": 0.8,
+                  "textAlign": "center",
+                },
+                {
+                  "color": "#183A2B",
+                  "fontFamily": "SFProRounded-Regular",
+                },
+              ]
+            }
+          >
+            Magnum Quattro
+          </Text>
+        </View>
+      </View>
+      <View
+        style={
+          [
+            {
+              "paddingHorizontal": 16,
+            },
+            {
+              "gap": [
+                0,
+                4,
+                8,
+                12,
+                16,
+                24,
+                32,
+              ],
+            },
+          ]
+        }
+      >
+        <View
+          style={
+            [
+              {
+                "flexDirection": "row",
+              },
+              {
+                "gap": [
+                  0,
+                  4,
+                  8,
+                  12,
+                  16,
+                  24,
+                  32,
+                ],
+              },
+            ]
+          }
+        >
+          <View
+            style={
+              {
+                "flex": 1,
+              }
+            }
+          >
+            <View
+              style={
+                [
+                  {
+                    "padding": 16,
+                  },
+                  {
+                    "backgroundColor": "#FAFAFA",
+                    "borderRadius": 16,
+                  },
+                  {
+                    "minHeight": 120,
+                    "padding": 16,
+                  },
+                ]
+              }
+            >
+              <View
+                style={
+                  {
+                    "alignItems": "center",
+                    "flex": 1,
+                    "flexDirection": "row",
+                    "justifyContent": "space-between",
+                  }
+                }
+              >
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flex": 1,
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "marginBottom": 8,
+                        },
+                        {
+                          "fontSize": 48,
+                        },
+                      ]
+                    }
+                  >
+                    🍃
+                  </Text>
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 14,
+                          "textAlign": "center",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Regular",
+                        },
+                      ]
+                    }
+                  >
+                    Purity
+                  </Text>
+                </View>
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flexDirection": "row",
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 28,
+                          "fontWeight": "bold",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Bold",
+                        },
+                      ]
+                    }
+                  >
+                    0
+                  </Text>
+                  <Text
+                    style={
+                      {
+                        "fontSize": 20,
+                        "marginLeft": 4,
+                      }
+                    }
+                  >
+                    ✨
+                  </Text>
+                </View>
+              </View>
+              <View
+                style={
+                  [
+                    {
+                      "borderRadius": 2,
+                      "height": 4,
+                      "marginTop": 12,
+                    },
+                    {
+                      "backgroundColor": "rgba(0,0,0,0.05)",
+                    },
+                  ]
+                }
+              >
+                <View
+                  style={
+                    [
+                      {
+                        "height": "100%",
+                      },
+                      {
+                        "backgroundColor": "#B6F6C8",
+                        "borderRadius": 4,
+                        "width": "0%",
+                      },
+                    ]
+                  }
+                />
+              </View>
+            </View>
+          </View>
+          <View
+            style={
+              {
+                "flex": 1,
+              }
+            }
+          >
+            <View
+              style={
+                [
+                  {
+                    "padding": 16,
+                  },
+                  {
+                    "backgroundColor": "#FAFAFA",
+                    "borderRadius": 16,
+                  },
+                  {
+                    "minHeight": 120,
+                    "padding": 16,
+                  },
+                ]
+              }
+            >
+              <View
+                style={
+                  {
+                    "alignItems": "center",
+                    "flex": 1,
+                    "flexDirection": "row",
+                    "justifyContent": "space-between",
+                  }
+                }
+              >
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flex": 1,
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "marginBottom": 8,
+                        },
+                        {
+                          "fontSize": 48,
+                        },
+                      ]
+                    }
+                  >
+                    🔮
+                  </Text>
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 14,
+                          "textAlign": "center",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Regular",
+                        },
+                      ]
+                    }
+                  >
+                    Effectiveness
+                  </Text>
+                </View>
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flexDirection": "row",
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 28,
+                          "fontWeight": "bold",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Bold",
+                        },
+                      ]
+                    }
+                  >
+                    0
+                  </Text>
+                  <Text
+                    style={
+                      {
+                        "fontSize": 20,
+                        "marginLeft": 4,
+                      }
+                    }
+                  >
+                    ⚡
+                  </Text>
+                </View>
+              </View>
+              <View
+                style={
+                  [
+                    {
+                      "borderRadius": 2,
+                      "height": 4,
+                      "marginTop": 12,
+                    },
+                    {
+                      "backgroundColor": "rgba(0,0,0,0.05)",
+                    },
+                  ]
+                }
+              >
+                <View
+                  style={
+                    [
+                      {
+                        "height": "100%",
+                      },
+                      {
+                        "backgroundColor": "#E8D9FF",
+                        "borderRadius": 4,
+                        "width": "0%",
+                      },
+                    ]
+                  }
+                />
+              </View>
+            </View>
+          </View>
+        </View>
+        <View
+          style={
+            [
+              {
+                "flexDirection": "row",
+              },
+              {
+                "gap": [
+                  0,
+                  4,
+                  8,
+                  12,
+                  16,
+                  24,
+                  32,
+                ],
+              },
+            ]
+          }
+        >
+          <View
+            style={
+              {
+                "flex": 1,
+              }
+            }
+          >
+            <View
+              style={
+                [
+                  {
+                    "padding": 16,
+                  },
+                  {
+                    "backgroundColor": "#FAFAFA",
+                    "borderRadius": 16,
+                  },
+                  {
+                    "minHeight": 120,
+                    "padding": 16,
+                  },
+                ]
+              }
+            >
+              <View
+                style={
+                  {
+                    "alignItems": "center",
+                    "flex": 1,
+                    "flexDirection": "row",
+                    "justifyContent": "space-between",
+                  }
+                }
+              >
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flex": 1,
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "marginBottom": 8,
+                        },
+                        {
+                          "fontSize": 48,
+                        },
+                      ]
+                    }
+                  >
+                    🛡️
+                  </Text>
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 14,
+                          "textAlign": "center",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Regular",
+                        },
+                      ]
+                    }
+                  >
+                    Safety
+                  </Text>
+                </View>
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flexDirection": "row",
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 28,
+                          "fontWeight": "bold",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Bold",
+                        },
+                      ]
+                    }
+                  >
+                    2
+                  </Text>
+                  <Text
+                    style={
+                      {
+                        "fontSize": 20,
+                        "marginLeft": 4,
+                      }
+                    }
+                  >
+                    🛡️
+                  </Text>
+                </View>
+              </View>
+              <View
+                style={
+                  [
+                    {
+                      "borderRadius": 2,
+                      "height": 4,
+                      "marginTop": 12,
+                    },
+                    {
+                      "backgroundColor": "rgba(0,0,0,0.05)",
+                    },
+                  ]
+                }
+              >
+                <View
+                  style={
+                    [
+                      {
+                        "height": "100%",
+                      },
+                      {
+                        "backgroundColor": "#FF8A7A",
+                        "borderRadius": 4,
+                        "width": "2%",
+                      },
+                    ]
+                  }
+                />
+              </View>
+            </View>
+          </View>
+          <View
+            style={
+              {
+                "flex": 1,
+              }
+            }
+          >
+            <View
+              style={
+                [
+                  {
+                    "padding": 16,
+                  },
+                  {
+                    "backgroundColor": "#FAFAFA",
+                    "borderRadius": 16,
+                  },
+                  {
+                    "minHeight": 120,
+                    "padding": 16,
+                  },
+                ]
+              }
+            >
+              <View
+                style={
+                  {
+                    "alignItems": "center",
+                    "flex": 1,
+                    "flexDirection": "row",
+                    "justifyContent": "space-between",
+                  }
+                }
+              >
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flex": 1,
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "marginBottom": 8,
+                        },
+                        {
+                          "fontSize": 48,
+                        },
+                      ]
+                    }
+                  >
+                    💰
+                  </Text>
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 14,
+                          "textAlign": "center",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Regular",
+                        },
+                      ]
+                    }
+                  >
+                    Value
+                  </Text>
+                </View>
+                <View
+                  style={
+                    {
+                      "alignItems": "center",
+                      "flexDirection": "row",
+                    }
+                  }
+                >
+                  <Text
+                    style={
+                      [
+                        {
+                          "fontSize": 28,
+                          "fontWeight": "bold",
+                        },
+                        {
+                          "color": "#183A2B",
+                          "fontFamily": "SFProRounded-Bold",
+                        },
+                      ]
+                    }
+                  >
+                    0
+                  </Text>
+                  <Text
+                    style={
+                      {
+                        "fontSize": 20,
+                        "marginLeft": 4,
+                      }
+                    }
+                  >
+                    💎
+                  </Text>
+                </View>
+              </View>
+              <View
+                style={
+                  [
+                    {
+                      "borderRadius": 2,
+                      "height": 4,
+                      "marginTop": 12,
+                    },
+                    {
+                      "backgroundColor": "rgba(0,0,0,0.05)",
+                    },
+                  ]
+                }
+              >
+                <View
+                  style={
+                    [
+                      {
+                        "height": "100%",
+                      },
+                      {
+                        "backgroundColor": "#FFD97A",
+                        "borderRadius": 4,
+                        "width": "0%",
+                      },
+                    ]
+                  }
+                />
+              </View>
+            </View>
+          </View>
+        </View>
+      </View>
+      <Text
+        style={
+          [
+            {
+              "fontSize": 18,
+              "fontWeight": "700",
+              "marginBottom": 8,
+              "marginHorizontal": 16,
+              "marginTop": 24,
+            },
+            {
+              "color": "#183A2B",
+            },
+          ]
+        }
+      >
+        What's great
+      </Text>
+      <View
+        style={
+          [
+            {
+              "marginBottom": 24,
+            },
+            {
+              "backgroundColor": "#242528",
+              "borderRadius": 14,
+              "marginHorizontal": 16,
+              "marginTop": 8,
+              "padding": 14,
+            },
+          ]
+        }
+      >
+        <View
+          style={
+            {
+              "alignItems": "flex-start",
+              "flexDirection": "row",
+              "marginBottom": 8,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "fontSize": 16,
+                "lineHeight": 22,
+                "marginRight": 12,
+              }
+            }
+          >
+            ✨
+          </Text>
+          <Text
+            style={
+              [
+                {
+                  "flex": 1,
+                  "fontSize": 14,
+                  "lineHeight": 20,
+                },
+                {
+                  "color": "#F4F5F6",
+                },
+              ]
+            }
+          >
+            Some highlight
+          </Text>
+        </View>
+      </View>
+      <Text
+        style={
+          [
+            {
+              "fontSize": 18,
+              "fontWeight": "700",
+              "marginBottom": 8,
+              "marginHorizontal": 16,
+              "marginTop": 24,
+            },
+            {
+              "color": "#183A2B",
+            },
+          ]
+        }
+      >
+        Worth a look
+      </Text>
+      <View
+        style={
+          [
+            {
+              "marginBottom": 24,
+            },
+            {
+              "backgroundColor": "#242528",
+              "borderRadius": 14,
+              "marginHorizontal": 16,
+              "marginTop": 8,
+              "padding": 14,
+            },
+          ]
+        }
+      >
+        <View
+          style={
+            {
+              "alignItems": "flex-start",
+              "flexDirection": "row",
+              "marginBottom": 8,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "fontSize": 16,
+                "lineHeight": 22,
+                "marginRight": 12,
+              }
+            }
+          >
+            ⚠️
+          </Text>
+          <Text
+            style={
+              [
+                {
+                  "flex": 1,
+                  "fontSize": 14,
+                  "lineHeight": 20,
+                },
+                {
+                  "color": "#F4F5F6",
+                },
+              ]
+            }
+          >
+            Some concern
+          </Text>
+        </View>
+      </View>
+      <View
+        style={
+          [
+            {
+              "padding": 16,
+            },
+            {
+              "backgroundColor": "#FAFAFA",
+              "borderRadius": 16,
+            },
+            [
+              {
+                "marginVertical": 16,
+                "padding": 24,
+              },
+              {
+                "marginHorizontal": 16,
+              },
+            ],
+          ]
+        }
+      >
+        <View
+          style={
+            {
+              "alignItems": "center",
+            }
+          }
+        >
+          <View
+            style={
+              {
+                "alignItems": "center",
+                "marginBottom": 20,
+              }
+            }
+          >
+            <Text
+              style={
+                {
+                  "fontSize": 32,
+                  "marginBottom": 8,
+                }
+              }
+            >
+              🦋
+            </Text>
+            <Text
+              style={
+                [
+                  {
+                    "fontSize": 18,
+                    "fontWeight": "bold",
+                    "textAlign": "center",
+                  },
+                  {
+                    "color": "#183A2B",
+                    "fontFamily": "SFProRounded-Bold",
+                  },
+                ]
+              }
+            >
+              Track Your Daily Supps
+            </Text>
+          </View>
+          <View
+            accessibilityRole="button"
+            accessibilityState={
+              {
+                "busy": undefined,
+                "checked": undefined,
+                "disabled": undefined,
+                "expanded": undefined,
+                "selected": undefined,
+              }
+            }
+            accessibilityValue={
+              {
+                "max": undefined,
+                "min": undefined,
+                "now": undefined,
+                "text": undefined,
+              }
+            }
+            accessible={true}
+            collapsable={false}
+            focusable={true}
+            onClick={[Function]}
+            onResponderGrant={[Function]}
+            onResponderMove={[Function]}
+            onResponderRelease={[Function]}
+            onResponderTerminate={[Function]}
+            onResponderTerminationRequest={[Function]}
+            onStartShouldSetResponder={[Function]}
+            style={
+              {
+                "alignItems": "center",
+                "backgroundColor": "#3584F6",
+                "borderRadius": 12,
+                "borderWidth": 0,
+                "flexDirection": "row",
+                "gap": 8,
+                "justifyContent": "center",
+                "opacity": 1,
+                "paddingHorizontal": 20,
+                "paddingVertical": 12,
+                "width": "100%",
+              }
+            }
+          >
+            <Text
+              style={
+                [
+                  {
+                    "color": "#FFFFFF",
+                    "fontFamily": "Inter-SemiBold",
+                    "fontSize": 16,
+                  },
+                  undefined,
+                ]
+              }
+            >
+              Add to My Stack
+            </Text>
+          </View>
+        </View>
+      </View>
+      <View
+        style={
+          {
+            "height": 40,
+          }
+        }
+      />
+    </View>
+  </RCTScrollView>
+</RNCSafeAreaView>
+`;

@@ -1,7 +1,6 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
-import ProductCard from '@/components/ProductCard';
-import { ThemeProvider } from '../context/ThemeContext';
+import { render } from './renderWithProviders';
+import ProductCard from '../src/components/ProductCard';
 
 const mockProduct = {
   id: 'test-123',
@@ -14,20 +13,12 @@ const mockProduct = {
 
 describe('ProductCard Dark Mode', () => {
   it('renders correctly in light theme', () => {
-    const { toJSON } = render(
-      <ThemeProvider>
-        <ProductCard {...mockProduct} />
-      </ThemeProvider>
-    );
+    const { toJSON } = render(<ProductCard {...mockProduct} />);
     expect(toJSON()).toMatchSnapshot();
   });
 
   it('renders correctly in dark theme', () => {
-    const { toJSON } = render(
-      <ThemeProvider>
-        <ProductCard {...mockProduct} />
-      </ThemeProvider>
-    );
+    const { toJSON } = render(<ProductCard {...mockProduct} />);
     expect(toJSON()).toMatchSnapshot();
   });
 }); 

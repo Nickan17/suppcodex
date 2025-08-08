@@ -43,7 +43,17 @@ export default function ScanScreen() {
       router.push({ pathname: '/score/[id]', params: { id: parsed.id } });
     } catch (err: any) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Toast.show({ type: 'error', text1: 'Scan Failed', text2: err.message });
+      
+      // Handle rate limiting specially
+      if (err.error === 'rate_limited') {
+        Toast.show({
+          type: 'error',
+          text1: 'Hold on—too many requests',
+          text2: 'Please wait a minute before trying again.'
+        });
+      } else {
+        Toast.show({ type: 'error', text1: 'Scan Failed', text2: err.message });
+      }
     } finally {
       setLoading(false);
     }

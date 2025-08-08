@@ -1,6 +1,8 @@
-import React, { createContext, ReactNode } from 'react';
+import React, { createContext, ReactNode, useState } from 'react';
 import { useColorScheme } from 'react-native';
 import { colors, spacing, radii, fonts } from '../tokens';
+
+type ThemeType = 'light' | 'dark' | 'system';
 
 interface ThemeContextType {
   colors: typeof colors;
@@ -8,6 +10,8 @@ interface ThemeContextType {
   radii: typeof radii;
   fonts: typeof fonts;
   isDark: boolean;
+  theme: ThemeType;
+  toggleTheme: () => void;
 }
 
 export const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -18,8 +22,18 @@ interface ThemeProviderProps {
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   console.log('MOUNT ThemeProvider v1');
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const systemColorScheme = useColorScheme();
+  const [theme, setTheme] = useState<ThemeType>('system');
+  
+  const isDark = theme === 'dark' || (theme === 'system' && systemColorScheme === 'dark');
+  
+  const toggleTheme = () => {
+    setTheme(prev => {
+      if (prev === 'light') return 'dark';
+      if (prev === 'dark') return 'system';
+      return 'light';
+    });
+  };
 
   const value = {
     colors,
@@ -27,6 +41,8 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     radii,
     fonts,
     isDark,
+    theme,
+    toggleTheme,
   };
 
   return (

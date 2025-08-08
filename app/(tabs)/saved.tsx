@@ -43,8 +43,7 @@ const MOCK_SAVED_PRODUCTS = [
 ];
 
 export default function SavedScreen() {
-  const { isDark } = useTheme();
-  const colors = isDark ? Colors.dark : Colors.light;
+  const { isDark, colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [savedProducts, setSavedProducts] = useState(MOCK_SAVED_PRODUCTS);
 

@@ -17,6 +17,13 @@ export interface ParsedProduct {
     parserSteps?: string[];
     status?: string;
     remediation?: string;
+    factsSource?: string;
+    factsTokens?: number;
+    ocrTried?: boolean;
+    ocrPicked?: string;
+    facts_kind?: string;
+    ingredients_source?: string;
+    had_numeric_doses?: boolean;
   };
 }
 
@@ -105,18 +112,12 @@ const fetchWithTimeout = (
  * -------------------------------------------------------------------------*/
 
 function extractIngredientsFromText(text: string): string | null {
-  // Capture after "Ingredients:" until a stop token
   const m = text.match(
-    /ingredients?\s*:\s*([\s\S]+?)(?:allergen|allergens|contains|warning|supplement\s+facts|nutrition\s+facts|amino|^$)/i
+    /ingredients?\s*:\s*([\s\S]{30,600}?)(?:\n\s*\n|allergen|contains|warning|supplement|nutrition|$)/i
   );
   if (!m) return null;
-  let block = m[1].trim();
-
-  // Clean up: collapse spaces, remove repeated newlines
-  block = block.replace(/\s+/g, ' ').replace(/\s*[,;]\s*/g, ', ');
-  // Short sanity check
-  if (block.length < 20) return null;
-  return `Ingredients: ${block}`;
+  const block = m[1].replace(/\s+/g, " ").trim();
+  return block.length >= 30 ? `Ingredients: ${block}` : null;
 }
 
 /* ---------------------------------------------------------------------------
@@ -170,7 +171,9 @@ async function lightOCR(
     const srcAttrs = ['src', 'data-src', 'data-original', 'data-zoom-image', 'data-rimg-src'];
     
     for (const attr of srcAttrs) {
-      const url = normalizeUrl(el.getAttribute(attr));
+      const attrValue = el.getAttribute(attr);
+      if (!attrValue) continue;
+      const url = normalizeUrl(attrValue);
       if (!url) continue;
       
       const alt = (el.getAttribute("alt") || "").toLowerCase();
@@ -190,6 +193,10 @@ async function lightOCR(
       // +2 if nearby text contains "Supplement Facts" or "Ingredients"
       if (nearbyText.includes('supplement facts')) score += 2;
       if (nearbyText.includes('ingredients')) score += 2;
+      
+      // +5 regex boost: if filename or alt text contains both 'supplement' and 'facts'
+      if ((filename.includes('supplement') && filename.includes('facts')) ||
+          (alt.includes('supplement') && alt.includes('facts'))) score += 5;
       
       // +1 for size hints or mid-carousel position
       const width = parseInt(el.getAttribute('width') || '0');
@@ -244,7 +251,7 @@ async function lightOCR(
     const href = el.getAttribute('href');
     const nearbyText = getNearbyText(el).toLowerCase();
     
-    if (nearbyText.includes('supplement facts')) {
+    if (nearbyText.includes('supplement facts') && href) {
       const url = normalizeUrl(href);
       if (url && /\.(jpe?g|png|gif|webp)$/i.test(url)) {
         let score = 2;
@@ -799,7 +806,7 @@ export async function parseProductPage(
   result._meta.factsSource = factsSource;
   result._meta.factsTokens = factsTokens;
   result._meta.ocrTried = ocrTried;
-  result._meta.ocrPicked = ocrPicked;
+  result._meta.ocrPicked = ocrPicked ? 'true' : undefined;
   result._meta.facts_kind = facts_kind;
   result._meta.ingredients_source = ingredients_source;
   result._meta.had_numeric_doses = result.numeric_doses_present;
@@ -807,7 +814,7 @@ export async function parseProductPage(
   console.log(`[PARSER] Extraction complete: factsSource=${factsSource}, factsTokens=${factsTokens}, ocrTried=${ocrTried}, facts_kind=${facts_kind}, ingredients_source=${ingredients_source}, numeric_doses=${result.numeric_doses_present}`);
   
   // Sanitize all string fields before returning
-  result.title = sanitize(result.title);
+  result.title = sanitize(result.title || null);
   result.ingredients_raw = sanitize(result.ingredients_raw);
   result.supplement_facts = sanitize(result.supplement_facts);
   result.serving_size = sanitize(result.serving_size);
@@ -836,16 +843,19 @@ export function extractTitle(html: string): string | null {
     return null;
   }
   const candidates = [
-    doc?.querySelector("meta[property='og:title']")?.getAttribute("content"),
-    doc?.querySelector("meta[name='title']")?.getAttribute("content"),
-    doc?.querySelector("title")?.textContent,
     doc?.querySelector("h1[itemprop='name']")?.textContent,
     doc?.querySelector("h1.product__title")?.textContent,
     doc?.querySelector("h1.product-single__title")?.textContent,
+    doc?.querySelector("meta[property='og:title']")?.getAttribute("content"),
+    doc?.querySelector("meta[name='title']")?.getAttribute("content"),
+    doc?.querySelector("title")?.textContent,
     doc?.querySelector("meta[name='description']")?.getAttribute("content"),
     doc?.querySelectorAll("title")[0]?.textContent,
   ];
-  const filtered = candidates.map((t) => t?.trim()).filter((t) => t);
+  const filtered = candidates
+    .map((t) => t?.trim())
+    .filter((t) => t)
+    .filter((t) => !(/^customer reviews/i.test(t) && t.length > 100)); // Skip titles that start with reviews and are long
 
   // Fallback: regex for <title>
   if (!filtered.length) {
@@ -870,10 +880,31 @@ export function extractTitle(html: string): string | null {
   }
   
   if (title) {
+    // Clean up Customer Reviews pollution
+    if (title && /customer reviews/i.test(title)) {
+      // Try multiple sources for clean title
+      const og = doc.querySelector("meta[property='og:title']")?.getAttribute("content")?.trim();
+      const h1 = doc.querySelector("h1.product__title, h1.product-title, h1.product-single__title, h1")?.textContent?.trim();
+      const productName = doc.querySelector(".product-single__title, .product__title, .product-title, [data-product-title]")?.textContent?.trim();
+      
+      // Use the cleanest available source, or fallback to generic supplement name
+      const cleanTitle = og || productName || h1;
+      if (cleanTitle && !(/customer reviews/i.test(cleanTitle))) {
+        title = cleanTitle;
+      } else {
+        // Last resort: try to extract product name from URL or use generic name
+        const urlMatch = url?.match(/\/products\/([^\/\?]+)/);
+        const productSlug = urlMatch?.[1]?.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        title = productSlug || 'Supplement Product';
+      }
+    }
+    
     // Clean up whitespace, remove control characters, and limit length
-    title = sanitize(title);
-    if (title && title.length > 250) {
-      title = title.substring(0, 250).trim() + '...';
+    const sanitizedTitle = sanitize(title);
+    if (sanitizedTitle && sanitizedTitle.length > 250) {
+      title = sanitizedTitle.substring(0, 250).trim() + '...';
+    } else {
+      title = sanitizedTitle || undefined;
     }
   }
   return title || null;
@@ -907,19 +938,12 @@ function extractIngredients(doc: any, ocrText: string | null): string | null {
     return `Ingredients: ${ingredientsMatch[1].trim()}`;
   }
 
-  // OCR fallback
+  // OCR fallback with improved multi-line pattern
   if (ocrText) {
-    const ingredientsMatch = ocrText.match(/ingredients?:\s*([^\n]*(?:\n[^\n]+)*)/i);
+    const ingredientsMatch = ocrText.match(/ingredients?\s*:\s*([\s\S]{30,600}?)(?:\n\s*\n|allergen|contains|warning|supplement|nutrition|$)/i);
     if (ingredientsMatch) {
-      let ocrIngredients = ingredientsMatch[1].trim();
-      if (ocrIngredients.length > 400) {
-        ocrIngredients = ocrIngredients.substring(0, 400);
-      }
-      const blankLineIndex = ocrIngredients.indexOf('\n\n');
-      if (blankLineIndex > 0) {
-        ocrIngredients = ocrIngredients.substring(0, blankLineIndex);
-      }
-      return ocrIngredients;
+      const block = ingredientsMatch[1].replace(/\s+/g, " ").trim();
+      return block.length >= 30 ? `Ingredients: ${block}` : null;
     }
   }
 

@@ -3,15 +3,17 @@ import { View, Text, StyleSheet } from 'react-native';
 
 interface ConcernsListProps {
   items?: string[];
+  concerns?: string[];
   loading?: boolean;
 }
 
-export default function ConcernsList({ items = [] }: ConcernsListProps) {
-  const hasItems = items.length > 0;
+export default function ConcernsList({ items = [], concerns = [] }: ConcernsListProps) {
+  const allItems = [...items, ...concerns];
+  const hasItems = allItems.length > 0;
   
   return (
     <View style={[styles.container, { backgroundColor: '#242528', borderRadius: 14, padding: 14, marginHorizontal: 16, marginTop: 8 }]}>
-      {hasItems ? items.slice(0, 5).map((item, index) => (
+      {hasItems ? allItems.slice(0, 5).map((item, index) => (
         <View key={index} style={styles.itemRow}>
           <Text style={styles.emoji}>⚠️</Text>
           <Text style={[styles.itemText, { color: '#F4F5F6' }]}>{item}</Text>

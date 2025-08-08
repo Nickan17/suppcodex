@@ -1,7 +1,7 @@
-export { default as Button } from './Button/Button.tsx';
-export { default as Card } from './Card/Card.tsx';
-export * from './PillTab/index.ts';
-export { default as ScoreRing } from './ScoreRing/ScoreRing.tsx';
-export { default as StatusChip } from './StatusChip/StatusChip.tsx';
-export { default as Typography } from './Typography.tsx';
-export * from './theme.ts';
+export { default as Button } from './Button/Button';
+export { default as Card } from './Card/Card';
+export * from './PillTab';
+export { default as ScoreRing } from './ScoreRing/ScoreRing';
+export { default as StatusChip } from './StatusChip/StatusChip';
+export { default as Typography } from './Typography';
+export * from './theme';

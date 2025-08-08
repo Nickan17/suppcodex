@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import MetricChip from '../MetricChip/MetricChip.tsx';
-import Card from '@/components/ui/Card';
-import StatusChip from '@/components/ui/StatusChip';
-import { useTheme } from '@/design-system/theme';
+import MetricChip from '../MetricChip/MetricChip';
+import Card from '../../../ui/Card/Card';
+import StatusChip from '../../../ui/StatusChip/StatusChip';
+import { useTheme } from '../../../../design-system/theme';
 import { omit } from 'lodash';
 
 interface ScoreData {
@@ -59,8 +59,8 @@ const ScoreGrid: React.FC<ScoreGridProps> = ({ scores }) => {
   ];
 
   return (
-    <View style={[styles.container, { gap: spacing }]}>
-      <View style={[styles.row, { gap: spacing }]}>
+    <View style={[styles.container, { gap: spacing[2] }]}>
+      <View style={[styles.row, { gap: spacing[2] }]}>
         {metrics.slice(0, 2).map((m, i) => (
           <View key={m.id ?? i} style={styles.chip}>
             <MetricChip
@@ -73,7 +73,7 @@ const ScoreGrid: React.FC<ScoreGridProps> = ({ scores }) => {
           </View>
         ))}
       </View>
-      <View style={[styles.row, { gap: spacing }]}>
+      <View style={[styles.row, { gap: spacing[2] }]}>
         {metrics.slice(2, 4).map((m, i) => (
           <View key={m.id ?? i} style={styles.chip}>
             <MetricChip

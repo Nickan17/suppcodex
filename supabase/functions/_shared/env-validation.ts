@@ -122,8 +122,8 @@ export function validateEnvironment(): ValidationResult {
     const config: EnvironmentConfig = {
       SUPABASE_URL: Deno.env.get("SUPABASE_URL")!,
       SUPABASE_ANON_KEY: Deno.env.get("SUPABASE_ANON_KEY")!,
-      SUPABASE_SERVICE_ROLE_KEY: SERVICE_ROLE,
-      SUPABASE_EDGE_FUNCTION_KEY: SERVICE_ROLE,
+      SUPABASE_SERVICE_ROLE_KEY: SERVICE_ROLE!,
+      SUPABASE_EDGE_FUNCTION_KEY: SERVICE_ROLE!,
       OPENROUTER_API_KEY: Deno.env.get("OPENROUTER_API_KEY")!,
       SCRAPFLY_API_KEY: Deno.env.get("SCRAPFLY_API_KEY")!,
       FIRECRAWL_API_KEY: Deno.env.get("FIRECRAWL_API_KEY"),

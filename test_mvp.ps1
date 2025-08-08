@@ -1,5 +1,5 @@
-$supabaseUrl = "https://uaqcehoocecvihubnbhp.supabase.co"
-$supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVhcWNlaG9vY2VjdmlodWJuYmhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA3MjA1OTMsImV4cCI6MjA2NjI5NjU5M30.kMkQqOqYAM4lopFBl7wVpff2F_tIzI24eGSHZ1eU3z4"
+$supabaseUrl = "$env:SUPABASE_URL"
+$supabaseAnonKey = "$env:SUPABASE_ANON_KEY"
 $functionName = "full-score-from-upc"
 $upc = "0851770007566"
 

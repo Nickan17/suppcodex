@@ -25,6 +25,12 @@ interface ExpoConfig {
     experiments: {
       typedRoutes: boolean;
     };
+    updates?: {
+      url: string;
+    };
+    runtimeVersion?: {
+      policy: string;
+    };
     extra: {
       supabaseUrl: string | undefined;
       supabaseAnonKey: string | undefined;

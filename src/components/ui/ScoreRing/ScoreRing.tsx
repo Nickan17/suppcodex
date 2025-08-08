@@ -25,7 +25,7 @@ export default function ScoreRing({
   const circumference = 2 * Math.PI * radius;
 
   // Ensure all calculations are finite numbers
-  const pct = Number.isFinite(score) ? score : 0;
+  const pct = Number.isFinite(score) ? score! : 0;
   const progress = clamp01(pct / 100);
   const dashOffsetNum = circumference * (1 - progress);
 
@@ -58,7 +58,7 @@ export default function ScoreRing({
       </Svg>
       <View style={{ position: 'absolute', alignItems: 'center' }}>
         <Text style={{ fontSize: 28, fontWeight: '700' }}>{grade}</Text>
-        <Text style={{ opacity: 0.7 }}>{Number.isFinite(score) ? `${Math.round(score)} / 100` : '— / 100'}</Text>
+        <Text style={{ opacity: 0.7 }}>{Number.isFinite(score) ? `${Math.round(score!)} / 100` : '— / 100'}</Text>
       </View>
     </View>
   );

@@ -1,4 +1,5 @@
 import 'react-native-get-random-values';
+import '../src/setupInterceptors'; // Import once for diagnostic logging
 import React, { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';

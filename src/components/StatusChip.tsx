@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme } from '../design-system/theme';
 import Colors from '../constants/Colors';
 
 type Status = 'success' | 'parser_fail' | 'blocked_by_site' | 'manual';

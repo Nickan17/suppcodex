@@ -2,7 +2,7 @@
 module.exports = {
   preset: 'jest-expo',
   testEnvironment: 'jsdom',
-  setupFilesAfterEnv: ['./jest.setup.js'],
+  setupFilesAfterEnv: ['./jest.env.ts', './jest.setup.js'],
   transformIgnorePatterns: [
     "node_modules/(?!(jest-runner|@react-native|react-native|react-clone-referenced-element|@react-native-community|expo(nent)?|@expo(nent)?/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|@sentry/.*))"
   ],
@@ -11,6 +11,9 @@ module.exports = {
     "^expo/src/winter/.*$": "<rootDir>/__mocks__/expo-winter-runtime.js",
     '^~/(.*)$': '<rootDir>/$1',
     '^@/(.*)$': '<rootDir>/src/$1',
+    '^@/design-system/(.*)$': '<rootDir>/src/design-system/$1',
+    '^@/components/(.*)$': '<rootDir>/components/$1',
+    '^@/src/(.*)$': '<rootDir>/src/$1',
     '^@/lib/supabase$': '<rootDir>/__mocks__/lib/supabase.js',
     '^../lib/supabase$': '<rootDir>/__mocks__/lib/supabase.js',
     '^../lib/supabase.ts$': '<rootDir>/__mocks__/lib/supabase.js',

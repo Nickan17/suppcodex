@@ -1,8 +1,31 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Load environment variables
+set -a
+if [ -f .env.local ]; then 
+  source .env.local
+  echo "✓ Loaded .env.local"
+elif [ -f .env ]; then 
+  source .env
+  echo "✓ Loaded .env"
+else
+  echo "⚠️  No env file found. Create .env.local from .env.example"
+  exit 1
+fi
+set +a
+
+# Verify required variables
+if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_ANON_KEY:-}" ]; then
+  echo "❌ Missing required environment variables: SUPABASE_URL or SUPABASE_ANON_KEY"
+  echo "   Ensure SUPABASE_URL and SUPABASE_ANON_KEY are set in your env file"
+  exit 1
+fi
+
 BASE="https://$SUPABASE_URL/functions/v1"
-AUTH="Authorization: Bearer $SUPABASE_ANON_KEY"
+AUTH="apikey: $SUPABASE_ANON_KEY"
+
+echo "🚀 Running smoke test against: $SUPABASE_URL"
 
 test_one () {
   local URL="$1"

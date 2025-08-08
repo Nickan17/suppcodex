@@ -70,7 +70,18 @@ export default function PasteScreen() {
       router.push({ pathname: '/score/[id]', params: { id: result.product?.id || 'latest' } });
     } catch (err: any) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError({ message: err.message || 'An unexpected error occurred.' });
+      
+      // Handle rate limiting specially
+      if (err.error === 'rate_limited') {
+        Toast.show({
+          type: 'error',
+          text1: 'Hold on—too many requests',
+          text2: 'Please wait a minute before trying again.'
+        });
+        setError({ message: err.message || 'Rate limit exceeded. Please wait a minute.' });
+      } else {
+        setError({ message: err.message || 'An unexpected error occurred.' });
+      }
       setCurrentStep('');
     } finally {
       setLoading(false);

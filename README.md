@@ -403,3 +403,20 @@ Some brands (e.g., Optimum Nutrition) aggressively block all automated scraping.
 - `provider_error`: Network/API issues; may need key rotation or provider switch
 - `blocked_by_site`: Domain blocks all bots; requires manual handling
 - `dead_url`: 404 errors; URL needs updating
+
+## 🔄 CI Matrix
+
+Run CI workflow against different environments:
+
+```bash
+# Development environment
+gh workflow run ci --ref main -f env=dev
+
+# Production environment  
+gh workflow run ci --ref main -f env=prod
+```
+
+### Environment-Specific Testing
+
+- **dev**: Tests against development Supabase instance with relaxed rate limits
+- **prod**: Tests against production instance with production API quotas

@@ -12,6 +12,7 @@ import { parseProductPage } from "./parser.ts";
 
 interface ChainStep {
   provider: string;
+  try?: number;
   status: "ok" | "empty" | "error";
   ms: number;
   code?: number;
@@ -76,6 +77,14 @@ const CORS_HEADERS = {
 
 const FIRECRAWL_TIMEOUT = 30_000; // 30 seconds
 const FIRECRAWL_API_URL = "https://api.firecrawl.dev/v1/scrape";
+const SCRAPFLY_API_URL = "https://scrapfly.io/api/scrape";
+
+/**
+ * Sleep for a given number of milliseconds
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 /**
  * Create a JSON response with proper CORS headers
@@ -107,6 +116,114 @@ async function fetchWithTimeout(
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+/**
+ * Try Shopify JSON endpoint for product data
+ */
+async function tryShopifyJson(url: string): Promise<{ result: ParsedResult | null; step: ChainStep }> {
+  const startTime = Date.now();
+  
+  try {
+    // Extract handle from URL (e.g., /products/quattro -> quattro)
+    const urlObj = new URL(url);
+    const match = urlObj.pathname.match(/\/products\/([^\/]+)/);
+    if (!match) {
+      return {
+        result: null,
+        step: {
+          provider: "shopify-json",
+          status: "error",
+          ms: Date.now() - startTime,
+          hint: "Not a Shopify product URL"
+        }
+      };
+    }
+    
+    const handle = match[1];
+    const jsonUrl = `${urlObj.origin}/products/${handle}.js`;
+    
+    const response = await fetchWithTimeout(jsonUrl, {}, 15000);
+    const ms = Date.now() - startTime;
+    
+    if (!response.ok) {
+      return {
+        result: null,
+        step: {
+          provider: "shopify-json",
+          status: "error",
+          ms,
+          code: response.status,
+          hint: `HTTP ${response.status}`
+        }
+      };
+    }
+    
+    const productData = await response.json();
+    
+    // Extract title and ingredients from Shopify JSON
+    const title = productData?.title || '';
+    const bodyHtml = productData?.body_html || '';
+    
+    // Parse body_html for numeric doses (mg, IU, g, etc.)
+    const numericDoseRegex = /\b(\d+(?:\.\d+)?)\s*(mg|iu|g|mcg|μg|units?)\b/gi;
+    const hasNumericDoses = numericDoseRegex.test(bodyHtml);
+    
+    // Extract ingredients from description
+    const ingredients: string[] = [];
+    const ingredientMatch = bodyHtml.match(/ingredients?:?\s*([^<]*)/i);
+    if (ingredientMatch) {
+      const ingredientText = ingredientMatch[1].replace(/<[^>]*>/g, '').trim();
+      ingredients.push(...ingredientText.split(/[,;]+/).map(s => s.trim()).filter(s => s.length > 0));
+    }
+    
+    const result: ParsedResult = {
+      title,
+      ingredients,
+      supplementFacts: {
+        raw: bodyHtml
+      },
+      warnings: [],
+      raw: productData
+    };
+    
+    return {
+      result,
+      step: {
+        provider: "shopify-json",
+        status: hasNumericDoses && ingredients.length > 0 ? "ok" : "empty",
+        ms,
+        code: response.status,
+        hint: !hasNumericDoses ? "No numeric doses found" : 
+              ingredients.length === 0 ? "No ingredients found" : undefined
+      }
+    };
+    
+  } catch (error) {
+    const ms = Date.now() - startTime;
+    return {
+      result: null,
+      step: {
+        provider: "shopify-json",
+        status: "error",
+        ms,
+        hint: error instanceof Error ? error.message : String(error)
+      }
+    };
+  }
+}
+
+/**
+ * Check if parsed result looks thin and needs fallback
+ */
+function looksThin(parsedResult: any, hasNumericDoses: boolean = false, factsTokens: number = 0): boolean {
+  if (!parsedResult) return true;
+  
+  // Updated guard logic: check ingredients_raw length instead of count
+  const ingredientsLength = parsedResult.ingredients_raw?.length || 0;
+  
+  return /404/i.test(parsedResult.title || "") ||
+         (ingredientsLength < 40 && factsTokens < 2);
 }
 
 /**
@@ -163,61 +280,179 @@ function normalizeInput(body: unknown): { urls: string[]; error?: ErrorResponse 
 }
 
 /**
- * Call Firecrawl API and return telemetry
+ * Call Firecrawl API with retries and exponential back-off
  */
-async function callFirecrawl(
+async function callFirecrawlWithRetries(
   url: string,
   apiKey: string,
   isSecondPass = false,
-): Promise<{ result: unknown; step: ChainStep }> {
-  const startTime = Date.now();
+): Promise<{ result: unknown; steps: ChainStep[] }> {
+  const steps: ChainStep[] = [];
+  const maxRetries = 3;
   
-  try {
-    console.log(`🔥 Calling Firecrawl${isSecondPass ? ' (second pass)' : ''} for: ${url}`);
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const startTime = Date.now();
     
-    const response = await fetchWithTimeout(FIRECRAWL_API_URL, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        url,
-        // For second pass, only use HTML and disable main content filtering
-        formats: isSecondPass ? ["html"] : ["html", "markdown"],
-        onlyMainContent: !isSecondPass,
-        timeout: 35000
-      }),
-    });
+    try {
+      console.log(`🔥 Calling Firecrawl${isSecondPass ? ' (second pass)' : ''} for: ${url} (attempt ${attempt}/${maxRetries})`);
+      
+      const response = await fetchWithTimeout(FIRECRAWL_API_URL, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          url,
+          // For second pass, only use HTML and disable main content filtering
+          formats: isSecondPass ? ["html"] : ["html", "markdown"],
+          onlyMainContent: !isSecondPass,
+          timeout: 35000
+        }),
+      });
 
-    const ms = Date.now() - startTime;
-    const result = response.ok ? await response.json() : null;
+      const ms = Date.now() - startTime;
+      const result = response.ok ? await response.json() : null;
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "Unknown error");
-      return {
-        result: null,
-        step: {
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => "Unknown error");
+        const step: ChainStep = {
           provider: isSecondPass ? "firecrawl-second" : "firecrawl",
+          try: attempt,
           status: "error",
           ms,
           code: response.status,
           hint: `HTTP ${response.status}: ${errorText}`,
-        },
-      };
-    }
+        };
+        steps.push(step);
 
-    // Check if we got usable content from scrape format
-    const hasContent = result?.success && (result?.data?.markdown || result?.data?.html);
-    
-    return {
-      result,
-      step: {
+        // Retry on 5xx and 429, but not on other 4xx
+        const shouldRetry = (response.status >= 500 || response.status === 429) && attempt < maxRetries;
+        if (shouldRetry) {
+          const delay = Math.pow(2, attempt - 1) * 1000; // 1s, 2s, 4s
+          console.log(`⏳ Retrying in ${delay}ms after ${response.status} error...`);
+          await sleep(delay);
+          continue;
+        }
+        
+        // No more retries or shouldn't retry
+        return { result: null, steps };
+      }
+
+      // Check if we got usable content from scrape format
+      const hasContent = result?.success && (result?.data?.markdown || result?.data?.html);
+      
+      const step: ChainStep = {
         provider: isSecondPass ? "firecrawl-second" : "firecrawl",
+        try: attempt,
         status: hasContent ? "ok" : "empty",
         ms,
         code: response.status,
         ...(hasContent ? {} : { hint: "No content returned from Firecrawl" }),
+      };
+      steps.push(step);
+
+      return { result, steps };
+
+    } catch (error) {
+      const ms = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      console.error(`❌ Firecrawl error${isSecondPass ? ' (second pass)' : ''} for ${url} (attempt ${attempt}):`, errorMessage);
+      
+      const step: ChainStep = {
+        provider: isSecondPass ? "firecrawl-second" : "firecrawl",
+        try: attempt,
+        status: "error",
+        ms,
+        hint: `Request failed: ${errorMessage}`,
+      };
+      steps.push(step);
+
+      // Retry on network errors
+      if (attempt < maxRetries) {
+        const delay = Math.pow(2, attempt - 1) * 1000; // 1s, 2s, 4s
+        console.log(`⏳ Retrying in ${delay}ms after network error...`);
+        await sleep(delay);
+        continue;
+      }
+    }
+  }
+  
+  return { result: null, steps };
+}
+
+/**
+ * Call Scrapfly API fallback
+ */
+async function callScrapfly(
+  url: string,
+  apiKey: string,
+): Promise<{ result: unknown; step: ChainStep }> {
+  const startTime = Date.now();
+  
+  try {
+    console.log(`🕷️ Calling Scrapfly fallback for: ${url}`);
+    
+    const params = new URLSearchParams({
+      key: apiKey,
+      url: url,
+      format: 'json',
+      render_js: 'true',
+      auto_scroll: 'true',
+    });
+
+    const fullUrl = `${SCRAPFLY_API_URL}?${params.toString()}`;
+    const scrapflyResponse = await fetchWithTimeout(fullUrl, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }, FIRECRAWL_TIMEOUT);
+
+    const ms = Date.now() - startTime;
+    const result = scrapflyResponse.ok ? await scrapflyResponse.json() : null;
+
+    if (!scrapflyResponse.ok) {
+      const errorText = await scrapflyResponse.text().catch(() => "Unknown error");
+      return {
+        result: null,
+        step: {
+          provider: "scrapfly",
+          status: "error",
+          ms,
+          code: scrapflyResponse.status,
+          hint: `HTTP ${scrapflyResponse.status}: ${errorText}`,
+        },
+      };
+    }
+
+    // Transform Scrapfly result to match Firecrawl format
+    const hasContent = result?.result?.content;
+    let transformedResult = null;
+    
+    if (hasContent) {
+      transformedResult = {
+        success: true,
+        data: {
+          html: result.result.content,
+          markdown: null, // Scrapfly doesn't provide markdown
+          metadata: {
+            title: result.result.title || undefined,
+            description: result.result.description || undefined,
+          }
+        }
+      };
+    }
+    
+    return {
+      result: transformedResult,
+      step: {
+        provider: "scrapfly",
+        status: hasContent ? "ok" : "empty",
+        ms,
+        code: scrapflyResponse.status,
+        ...(hasContent ? {} : { hint: "No content returned from Scrapfly" }),
       },
     };
 
@@ -225,18 +460,30 @@ async function callFirecrawl(
     const ms = Date.now() - startTime;
     const errorMessage = error instanceof Error ? error.message : String(error);
     
-    console.error(`❌ Firecrawl error${isSecondPass ? ' (second pass)' : ''} for ${url}:`, errorMessage);
+    console.error(`❌ Scrapfly error for ${url}:`, errorMessage);
     
     return {
       result: null,
       step: {
-        provider: isSecondPass ? "firecrawl-second" : "firecrawl",
+        provider: "scrapfly",
         status: "error",
         ms,
         hint: `Request failed: ${errorMessage}`,
       },
     };
   }
+}
+
+/**
+ * Legacy wrapper to maintain compatibility
+ */
+async function callFirecrawl(
+  url: string,
+  apiKey: string,
+  isSecondPass = false,
+): Promise<{ result: unknown; step: ChainStep }> {
+  const { result, steps } = await callFirecrawlWithRetries(url, apiKey, isSecondPass);
+  return { result, step: steps[steps.length - 1] };
 }
 
 /**
@@ -437,33 +684,96 @@ async function handler(request: Request): Promise<Response> {
         return jsonResponse({ error: "bad_request", message: "No URL provided in input", _meta: meta }, 400);
     }
     
-    // First pass
-    const { result: firecrawlResult, step: firecrawlStep } = await callFirecrawl(url, apiKey, false);
-    meta.chain.push(firecrawlStep);
+    // 1. Try Shopify JSON first (for Shopify product pages)
+    const { result: shopifyResult, step: shopifyStep } = await tryShopifyJson(url);
+    meta.chain.push(shopifyStep);
+    
+    let finalResult = shopifyResult;
+    let data: any = {};
+    let parsedRich: ParsedResult | null = shopifyResult;
+    
+    // Check if Shopify result looks thin
+    const hasNumericDoses = shopifyStep.status === "ok" && !shopifyStep.hint?.includes("No numeric doses");
+    const shopifyThin = looksThin(shopifyResult, hasNumericDoses);
+    
+    if (shopifyThin) {
+      console.log(`📱 Shopify JSON was thin, trying Firecrawl...`);
+      
+      // 2. Fallback to Firecrawl
+      const { result: firecrawlResult, steps: firecrawlSteps } = await callFirecrawlWithRetries(url, apiKey, false);
+      meta.chain.push(...firecrawlSteps);
 
-    // 4. Parse the result
-    let data = (firecrawlResult as any)?.data ?? {};
-    let html = typeof data?.html === 'string' ? data.html : '';
-    let md = typeof data?.markdown === 'string' ? data.markdown : '';
-    // parseProductPage prefers HTML; if only markdown exists, wrap it
-    let htmlForParser = html || (md ? `<article>${md}</article>` : '');
+      finalResult = firecrawlResult;
+      data = (firecrawlResult as any)?.data ?? {};
+      parsedRich = null; // Will be parsed later
+    } else {
+      console.log(`✅ Shopify JSON provided good content`);
+    }
 
-    // get OCR key if present
-    const OCRSPACE_API_KEY = Deno.env.get("OCRSPACE_API_KEY") || undefined;
+    // Check if we need Scrapfly fallback (only if we used Firecrawl and it was thin)
+    const firecrawlFailed = shopifyThin && (!finalResult || !(finalResult as any)?.success);
+    const hasUsableContent = (data?.html || data?.markdown);
+    const firecrawlThin = shopifyThin && firecrawlFailed || !hasUsableContent;
+    
+    if (firecrawlThin) {
+      console.log(`🔄 Firecrawl failed or returned empty content, trying Scrapfly fallback...`);
+      
+      // Check for Scrapfly API key
+      const scrapflyApiKey = Deno.env.get("SCRAPFLY_API_KEY");
+      if (!scrapflyApiKey) {
+        console.error("❌ SCRAPFLY_API_KEY environment variable is missing for fallback");
+        return jsonResponse({
+          error: "config",
+          message: "SCRAPFLY_API_KEY missing for fallback",
+          _meta: meta,
+        }, 500);
+      }
 
-    // Parse with first pass content
-    let parsedRich = await parseProductPage(htmlForParser, url, null, { OCRSPACE_API_KEY });
+      const { result: scrapflyResult, step: scrapflyStep } = await callScrapfly(url, scrapflyApiKey);
+      meta.chain.push(scrapflyStep);
+
+      if (scrapflyResult) {
+        finalResult = scrapflyResult;
+        data = (scrapflyResult as any)?.data ?? {};
+        console.log(`✅ Scrapfly fallback successful`);
+      } else {
+        console.log(`❌ Both Firecrawl and Scrapfly failed`);
+      }
+    }
+
+    // 4. Parse the result (skip if we already have Shopify result)
+    if (!parsedRich) {
+      let html = typeof data?.html === 'string' ? data.html : '';
+      let md = typeof data?.markdown === 'string' ? data.markdown : '';
+      // parseProductPage prefers HTML; if only markdown exists, wrap it
+      let htmlForParser = html || (md ? `<article>${md}</article>` : '');
+
+      // get OCR key if present
+      const OCRSPACE_API_KEY = Deno.env.get("OCRSPACE_API_KEY") || undefined;
+
+      // Parse with first pass content
+      parsedRich = await parseProductPage(htmlForParser, url, null, { OCRSPACE_API_KEY });
+    }
+
+    // Final thin content guard - if still thin after all providers, throw error
+    const initialFactsTokens = countFactsTokens(
+      parsedRich?.supplementFacts?.raw ??
+      parsedRich?.supplement_facts ?? ''
+    );
+    if (looksThin(parsedRich, false, initialFactsTokens)) {
+      throw new Error("Thin content – fallback failed");
+    }
 
     // Check if we need second pass
-    const factsTokens = countFactsTokens(parsedRich.supplement_facts);
+    const factsTokens = countFactsTokens(parsedRich.supplement_facts || '');
     const shouldDoSecondPass = needsSecondPass(parsedRich, factsTokens);
 
     if (shouldDoSecondPass) {
       console.log(`🔄 Triggering second pass for ${url} (factsTokens: ${factsTokens})`);
       
-      // Second pass with different parameters
-      const { result: secondResult, step: secondStep } = await callFirecrawl(url, apiKey, true);
-      meta.chain.push(secondStep);
+      // Second pass with retries
+      const { result: secondResult, steps: secondSteps } = await callFirecrawlWithRetries(url, apiKey, true);
+      meta.chain.push(...secondSteps);
 
       if (secondResult) {
         // Re-parse with second pass content
@@ -496,13 +806,21 @@ async function handler(request: Request): Promise<Response> {
     // Add OCR and facts telemetry to meta
     const finalFactsTokens = countFactsTokens(factsRaw);
     
+    // Prepare warnings array with optional numeric doses concern
+    let warnings = parsedRich.warnings && parsedRich.warnings.length
+      ? [...parsedRich.warnings]
+      : [];
+    
+    // Add concern for missing numeric doses if applicable
+    if (!parsedRich.numeric_doses_present) {
+      warnings.push("⚠ Numeric doses missing");
+    }
+
     const out: SuccessResponse = {
       title: parsedRich.title || 'Unknown Product',
       ingredients: ingredientsArray,
       supplementFacts: factsRaw ? { raw: factsRaw } : undefined,
-      warnings: parsedRich.warnings && parsedRich.warnings.length
-        ? parsedRich.warnings
-        : [],
+      warnings: warnings,
       // raw: firecrawlResult, // Raw output removed to prevent invalid JSON errors
       _meta: {
         ...meta,
@@ -520,6 +838,13 @@ async function handler(request: Request): Promise<Response> {
         had_numeric_doses: parsedRich._meta?.had_numeric_doses
       }
     };
+    
+    // Optional: Trim large review blobs server side
+    if (out.supplementFacts?.raw) {
+      out.supplementFacts.raw = out.supplementFacts.raw
+        .replace(/customer reviews[\s\S]+$/i, '') // remove trailing review texts
+        .slice(0, 2000); // cap length for UI performance
+    }
     
     // 5. Check if we got usable content
     const hasAny =

@@ -1,1 +1,1 @@
-export { default as PillTab } from './PillTab.tsx';
+export { default as PillTab } from './PillTab';

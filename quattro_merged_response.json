@@ -1,0 +1,61 @@
+{
+  "title": "Customer Reviews 4.98 out of 5 Based on 51 reviews 50 1 0 0 0 See all reviews Write a review Most Recent Highest Rating Lowest Rating Only Pictures Pictures First Videos First Most Helpful 12/28/2024 M.D. Best flavor of all powder I have tried. 11/06/2024 Bryan No blender needed. Tastes amazing. 01/04/2024 Vanessa Delivered was very quick I like this brand ☺️ Chocolate flavor is good and no watery taste 12/28/2023 Angie Willson Quattro Protein Hands down my favorite protein. Easy to mix, tastes great and no bad after taste. 12/22/2023 Robert Rowe Amazing product ! Usually I’m very picky about my protein powders, I think we’ve all had some pretty bad ones time and time again. But S/O to magnum supplements this Quattro is AMAZING mix it with some PB and a frozen banana and you have yourself an amazing shake. 11/02/2023 Glen Love it 09/25/2023 Angie Willson My fav protein ever! Tastes great & mixes really well! 09/15/2023 Sarah We prefer the vanilla flavor from the “Shake Series” over this soft serve version. 06/03/2023 Andrew Protein!! Absolutely love this protein. At 30g per scoop, you can’t go wrong. The taste is unmatched. And. The mix ability is so smooth. Highly recommend 06/01/2023 Blake Tried many…Quattro is the ONE! Over the years, I’ve tried A LOT of protein shakes. Some dissolve/mix well and taste bad. Some taste good but mix horribly. Some are really good but not much protein per serving. With the direction of my personal trainer, I was turned on to Quattro Shake Series, Vanilla and Chocolate. MAGNUM NAILED IT!! Both formulas mix extremely well. Taste? Vanilla is delicious. Chocolate: thick, creamy, flavorful AND ACTUALLY SHAKE-LIKE!!!! A product that IS what it SAYS???? That’s what I’ve found with Quattro, as well as the other supplements that I’ve used from them. SOLIDLY NAILED THIS ONE!!!! Load More",
+  "ingredients": [],
+  "supplementFacts": {
+    "raw": "Supplement Facts Chocolate Love Peanut Butter Cups Toasted Cinnamon Cereal Iced Caramel Macchiato Soft Serve Vanilla Ice Cream Peanut Butter Cups Intended Use: Aids in reaching daily protein requirements Supports muscle growth and recovery Supports a healthy immune system Aids in weight loss efforts and maintaining a healthy body weight Directions: Take 1-2 servings with 1-2 cups of water or beverage of choice after training. Take 1-2 servings as part of a meal replacement shake. Use in recipes like baked oats, pancakes, etc."
+  },
+  "warnings": [],
+  "_meta": {
+    "chain": [
+      {
+        "provider": "firecrawl",
+        "try": 1,
+        "status": "ok",
+        "ms": 10920,
+        "code": 200
+      },
+      {
+        "provider": "openrouter",
+        "try": 1,
+        "status": "ok",
+        "ms": 427,
+        "code": 200
+      }
+    ],
+    "urls": [
+      "https://magnumsupps.com/en-us/products/quattro"
+    ],
+    "parser": {
+      "steps": [
+        "shopify-title",
+        "shopify-supplement-facts",
+        "shopify_generic"
+      ],
+      "numeric_doses_present": false
+    },
+    "factsSource": "supplement_facts",
+    "factsTokens": 2,
+    "ocrTried": false,
+    "facts_kind": "supplement_facts",
+    "ingredients_source": "html",
+    "had_numeric_doses": false,
+    "timestamp": "2025-08-08T00:23:26.605Z",
+    "model": "openrouter",
+    "ts": 1754612606605
+  },
+  "score": 70,
+  "purity": 60,
+  "effectiveness": 70,
+  "safety": 100,
+  "value": 70,
+  "highlights": [
+    "Great taste",
+    "Easy to mix",
+    "Supports muscle growth"
+  ],
+  "concerns": [
+    "No per-ingredient dosages disclosed",
+    "No ingredient list provided",
+    ""
+  ]
+}

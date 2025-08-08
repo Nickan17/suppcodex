@@ -7,7 +7,10 @@
       "@/*": ["./src/*"],
       "@/contexts/*": ["src/contexts/*"],
       "@/context/*": ["src/contexts/*"],
-      "@/hooks/*": ["src/hooks/*"]
+      "@/hooks/*": ["src/hooks/*"],
+      "@/design-system/*": ["src/design-system/*"],
+      "@/components/*": ["components/*"],
+      "@/src/*": ["src/*"]
     }
   },
   "include": [
@@ -16,5 +19,12 @@
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
     "nativewind-env.d.ts"
+  ],
+  "exclude": [
+    "supabase/**/*",
+    "tests/**/*",
+    "__tests__/firecrawl-retry.test.ts",
+    "**/*.stories.*",
+    ".storybook/**/*"
   ]
 }

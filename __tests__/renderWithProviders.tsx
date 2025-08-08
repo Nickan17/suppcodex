@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, RenderOptions } from '@testing-library/react-native';
-import { ThemeProvider } from '@/design-system/theme/useTheme';
+import { ThemeProvider } from '../src/design-system/theme';
 
 const AllTheProviders = ({ children }: { children: React.ReactNode }) => {
   return (

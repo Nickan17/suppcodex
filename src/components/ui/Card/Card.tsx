@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, ViewStyle } from 'react-native';
-import { useTheme } from '@/design-system/theme';
+import { useTheme } from '../../../design-system/theme';
 
 interface CardProps {
   children: React.ReactNode;
   style?: ViewStyle;
-  padding?: keyof typeof import('@/design-system/tokens').spacing;
+  padding?: number;
 }
 
 const Card: React.FC<CardProps> = ({ 
@@ -18,7 +18,7 @@ const Card: React.FC<CardProps> = ({
   const cardStyles: ViewStyle = {
     backgroundColor: colors.background,
     borderRadius: radii.md,
-    padding: spacing[padding],
+    padding: padding,
     shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowRadius: 8,

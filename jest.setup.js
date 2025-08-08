@@ -1,4 +1,6 @@
 process.env.SUPABASE_JWT_SECRET ??= "test-secret";
+process.env.EXPO_PUBLIC_SUPABASE_URL ??= "https://test.supabase.co";
+process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??= "test-anon-key";
 // Better assertions for React Native
 import '@testing-library/jest-native/extend-expect';
 
@@ -39,9 +41,16 @@ jest.mock('expo-constants', () => ({
 // Mock Supabase
 jest.mock("@/services/supabase", () => require("./__mocks__/lib/supabase.js"));
 
-// Default no-op fetch so tests don’t hit the network; individual tests can override
+// Default no-op fetch so tests don't hit the network; individual tests can override
 if (!global.fetch) {
   global.fetch = jest.fn(() =>
     Promise.resolve({ ok: true, json: () => Promise.resolve({}) }),
   );
 }
+
+// Global render function with theme providers
+import { render } from './__tests__/renderWithProviders';
+global.render = render;
+
+// Mock style-type conflicts
+jest.mock("react-native/Libraries/Animated/NativeAnimatedHelper");

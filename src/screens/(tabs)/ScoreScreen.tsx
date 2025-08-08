@@ -1,45 +1,131 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
-import { useTheme } from '@/design-system/theme';
-import { useProduct } from '@/contexts/ProductContext';
-import { toGrade } from '@/utils/toGrade';
-import ScoreHeader from '@/components/features/score/ScoreHeader/ScoreHeader';
-import HighlightsList from '@/components/features/score/HighlightsList/HighlightsList';
-import ConcernsList from '@/components/features/score/ConcernsList/ConcernsList';
-import ScoreGrid from '@/components/features/score/ScoreGrid/ScoreGrid';
-import TrackCTA from '@/components/features/score/TrackCTA/TrackCTA';
-import DebugDrawer from '@/components/features/score/DebugDrawer/DebugDrawer';
-import ScoreCelebration from '@/components/features/score/ScoreCelebration/ScoreCelebration';
+import { useTheme } from '../../design-system/theme';
+import { useProduct } from '../../contexts/ProductContext';
+import { toGrade } from '../../utils/toGrade';
+import { mapExtractAndScoreToNormalized, NormalizedScore, CertBadge } from '../../utils/scoreResult';
+import ScoreHeader from '../../components/features/score/ScoreHeader/ScoreHeader';
+import HighlightsList from '../../components/features/score/HighlightsList/HighlightsList';
+import ConcernsList from '../../components/features/score/ConcernsList/ConcernsList';
+import ScoreGrid from '../../components/features/score/ScoreGrid/ScoreGrid';
+import TrackCTA from '../../components/features/score/TrackCTA/TrackCTA';
+import DebugDrawer from '../../components/features/score/DebugDrawer/DebugDrawer';
+import ScoreCelebration from '../../components/features/score/ScoreCelebration/ScoreCelebration';
 
 export default function ScoreScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { current } = useProduct();
   const { colors } = useTheme();
   const [showDebug, setShowDebug] = useState(false);
+  const [showTimeout, setShowTimeout] = useState(false);
 
   // Dev mode check
   const isDev = __DEV__ || process.env.EXPO_PUBLIC_USE_MOCK === '1';
+
+  // Add timeout for loading state
+  useEffect(() => {
+    if (!current) {
+      const timer = setTimeout(() => {
+        setShowTimeout(true);
+        console.log('[ScoreScreen] Loading timeout reached, showing timeout UI');
+      }, 10000); // 10 second timeout
+
+      return () => clearTimeout(timer);
+    }
+  }, [current]);
 
   if (!current) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.loadingContainer}>
-          <Text style={[styles.loadingText, { color: colors.textPrimary }]}>
-            Analyzing…
-          </Text>
+          {!showTimeout ? (
+            <>
+              <Text style={[styles.loadingText, { color: colors.textPrimary }]}>
+                Analyzing…
+              </Text>
+              <Text style={[styles.loadingSubtext, { color: colors.textSecondary, marginTop: 8 }]}>
+                This may take up to 30 seconds
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text style={[styles.loadingText, { color: colors.textPrimary }]}>
+                Taking longer than expected
+              </Text>
+              <Text style={[styles.loadingSubtext, { color: colors.textSecondary, marginTop: 8 }]}>
+                The analysis may be stuck or there may be a network issue
+              </Text>
+            </>
+          )}
+          
+          <View style={{ marginTop: 32, gap: 16 }}>
+            <TouchableOpacity 
+              onPress={() => {
+                console.log('[ScoreScreen] User pressed Go Back');
+                if (router.canGoBack()) {
+                  router.back();
+                } else {
+                  router.replace('/');
+                }
+              }} 
+              style={[styles.actionButton, { borderColor: colors.textSecondary }]}
+            >
+              <Text style={[styles.actionButtonText, { color: colors.textSecondary }]}>
+                ← Go Back
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              onPress={() => {
+                console.log('[ScoreScreen] User pressed Go Home');
+                router.replace('/');
+              }} 
+              style={[styles.actionButton, { backgroundColor: colors.primary || '#007AFF' }]}
+            >
+              <Text style={[styles.actionButtonText, { color: '#FFFFFF' }]}>
+                🏠 Go Home
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </SafeAreaView>
     );
   }
 
-  // Extract data defensively
+  // Extract data defensively and normalize
   const score = Number.isFinite(current.score?.score) ? current.score.score : 0;
   const title = current.product?.title || 'Unknown Product';
   const highlights = Array.isArray(current.score?.highlights) ? current.score.highlights : [];
   const concerns = Array.isArray(current.score?.concerns) ? current.score.concerns : [];
   const grade = toGrade(score);
+  
+  // Create normalized score object for clean UI rendering
+  let normalizedScore: NormalizedScore | null = null;
+  if (current.product && current.score) {
+    try {
+      normalizedScore = mapExtractAndScoreToNormalized({
+        extract: {
+          title: current.product.title,
+          ingredients: current.product.ingredients || [],
+          supplementFacts: current.product.facts ? { raw: current.product.facts } : undefined,
+          _meta: { factsSource: current.meta?.factsSource }
+        },
+        score: {
+          score: current.score.score || 0,
+          purity: Math.max(0, (current.score.score || 0) - 5),
+          effectiveness: Math.max(0, (current.score.score || 0) - 3), 
+          safety: Math.max(0, (current.score.score || 0) + 2),
+          value: Math.max(0, (current.score.score || 0) - 1),
+          highlights: current.score.highlights || [],
+          concerns: current.score.concerns || []
+        }
+      });
+    } catch (error) {
+      console.warn('Failed to normalize score data:', error);
+    }
+  }
   
   // Only show service unavailable banner when scorer actually failed (not weak extraction)
   const showServiceUnavailable = Boolean(current.meta?.score?.error);
@@ -119,13 +205,32 @@ export default function ScoreScreen() {
           </View>
         )}
 
+        {/* Certifications badges */}
+        {normalizedScore?.certifications?.length ? (
+          <View style={styles.certContainer}>
+            {normalizedScore.certifications.map((cert) => (
+              <CertificationBadge key={cert} badge={cert} colors={colors} />
+            ))}
+          </View>
+        ) : null}
+
+        {/* Mini Stats */}
+        {normalizedScore && (
+          <View style={styles.miniStatsContainer}>
+            <MiniStat label="Purity" value={normalizedScore.purity} colors={colors} />
+            <MiniStat label="Effectiveness" value={normalizedScore.effectiveness} colors={colors} />
+            <MiniStat label="Safety" value={normalizedScore.safety} colors={colors} />
+            <MiniStat label="Value" value={normalizedScore.value} colors={colors} />
+          </View>
+        )}
+
         {/* Score Grid - only show if we have a valid score */}
-        {score > 0 && (
+        {score !== undefined && score !== null && (
           <ScoreGrid scores={{
-            purity: Math.max(0, score - 5),
-            effectiveness: Math.max(0, score - 3),
-            safety: Math.max(0, score + 2),
-            value: Math.max(0, score - 1)
+            purity: Math.max(0, (score || 0) - 5),
+            effectiveness: Math.max(0, (score || 0) - 3),
+            safety: Math.max(0, (score || 0) + 2),
+            value: Math.max(0, (score || 0) - 1)
           }} />
         )}
 
@@ -133,13 +238,39 @@ export default function ScoreScreen() {
         <Text style={[styles.sectionHeader, { color: colors.textPrimary || '#123926' }]}>
           What&apos;s great
         </Text>
-        <HighlightsList items={highlights} />
+        {highlights?.length ? (
+          <HighlightsList items={highlights} />
+        ) : (
+          <View style={styles.emptyState}>
+            <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
+              Label text unreadable – no highlights.
+            </Text>
+          </View>
+        )}
 
         {/* Concerns Section */}
         <Text style={[styles.sectionHeader, { color: colors.textPrimary || '#123926' }]}>
           Worth a look
         </Text>
-        <ConcernsList items={concerns} />
+        {concerns?.length ? (
+          <ConcernsList items={concerns} />
+        ) : null}
+
+        {/* Ingredients Card */}
+        {normalizedScore?.ingredients?.length ? (
+          <Card title="Ingredients" colors={colors}>
+            {normalizedScore.ingredients.slice(0, 10).map((ing, i) => (
+              <Text key={i} style={[styles.ingredientItem, { color: colors.textPrimary }]}>
+                • {ing}
+              </Text>
+            ))}
+            {normalizedScore.ingredients.length > 10 && (
+              <Text style={[styles.ingredientMore, { color: colors.textSecondary }]}>
+                ... and {normalizedScore.ingredients.length - 10} more
+              </Text>
+            )}
+          </Card>
+        ) : null}
 
         {/* Actions */}
         <TrackCTA onAddToStack={handleAddToStack} />
@@ -160,6 +291,27 @@ export default function ScoreScreen() {
   );
 }
 
+// Helper Components
+const MiniStat = ({ label, value, colors }: { label: string; value: number; colors: any }) => (
+  <View style={[styles.miniStat, { borderColor: colors.border || '#E5E7EB' }]}>
+    <Text style={[styles.miniStatValue, { color: colors.textPrimary }]}>{value}</Text>
+    <Text style={[styles.miniStatLabel, { color: colors.textSecondary }]}>{label}</Text>
+  </View>
+);
+
+const Card = ({ title, children, colors }: { title: string; children: React.ReactNode; colors: any }) => (
+  <View style={[styles.card, { borderColor: colors.border || '#E5E7EB', backgroundColor: colors.surface || '#FFFFFF' }]}>
+    <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>{title}</Text>
+    {children}
+  </View>
+);
+
+const CertificationBadge = ({ badge, colors }: { badge: CertBadge; colors: any }) => (
+  <View style={[styles.certBadge, { backgroundColor: colors.mint || '#B6F6C8', borderColor: colors.mintBorder || '#A8E6CF' }]}>
+    <Text style={[styles.certBadgeText, { color: colors.textPrimary }]}>{badge}</Text>
+  </View>
+);
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -175,6 +327,22 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 18,
+    fontWeight: '600',
+  },
+  loadingSubtext: {
+    fontSize: 14,
+    textAlign: 'center',
+    opacity: 0.7,
+  },
+  actionButton: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+  actionButtonText: {
+    fontSize: 16,
     fontWeight: '600',
   },
   header: {
@@ -213,5 +381,81 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     fontSize: 18,
     fontWeight: '700',
+  },
+  emptyState: {
+    marginHorizontal: 16,
+    padding: 12,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: 14,
+    fontStyle: 'italic',
+  },
+  miniStat: {
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    minWidth: 70,
+  },
+  miniStatValue: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  miniStatLabel: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  card: {
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginVertical: 8,
+    marginHorizontal: 16,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  certBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginHorizontal: 2,
+    marginVertical: 2,
+  },
+  certBadgeText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  certContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    marginVertical: 8,
+    marginHorizontal: 16,
+  },
+  miniStatsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginVertical: 16,
+    marginHorizontal: 16,
+  },
+  ingredientItem: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 4,
+  },
+  ingredientMore: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginTop: 8,
+    textAlign: 'center',
   },
 });
