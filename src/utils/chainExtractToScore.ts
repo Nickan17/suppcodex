@@ -4,6 +4,9 @@ import { toGrade } from './toGrade';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import CryptoJS from 'crypto-js';
 
+// PATCH: schema version for cache keys
+export const EXTRACT_SCHEMA_VERSION = 'v4';
+
 // Cache configuration
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const CACHE_PREFIX = 'chainExtractToScore_';
@@ -30,12 +33,135 @@ const stripHtmlToText = (html: string) =>
     .replace(/\s+/g, ' ')
     .trim() || '';
 
+// AUDIT: normalize number into [0,100] or null
+const toNum = (v: any): number | null => {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  if (!Number.isFinite(n)) return null;
+  return Math.max(0, Math.min(100, Math.round(n)));
+};
+
+// AUDIT: adapter for score function responses
+export type UISubScores = { purity?: number | null; effectiveness?: number | null; safety?: number | null; value?: number | null };
+export type UIScoreResult = {
+  title: string;
+  overallScore: number | null;
+  overallGrade?: string | null;
+  normalizedScore?: UISubScores | null;
+  strengths?: string[];
+  concerns?: string[];
+  ingredients?: string[] | null;
+  ingredients_raw?: string | null;
+  serving_size?: string | null;
+  meta?: { extract?: any; score?: any };
+};
+
+function extractSubscores(raw: any): UISubScores {
+  // Always provide all four keys; null means missing
+  const out: UISubScores = { purity: null, effectiveness: null, safety: null, value: null };
+
+  if (!raw || typeof raw !== 'object') return out;
+
+  const tryAssign = (obj: any, key: string, targetKey: keyof UISubScores) => {
+    const v = obj?.[key];
+    const n = toNum(v);
+    if (n !== null && out[targetKey] === null) out[targetKey] = n;
+  };
+  const scan = (obj: any) => {
+    if (!obj) return;
+    tryAssign(obj, 'purity', 'purity');
+    tryAssign(obj, 'purity_score', 'purity');
+    tryAssign(obj, 'effectiveness', 'effectiveness');
+    tryAssign(obj, 'effectiveness_score', 'effectiveness');
+    tryAssign(obj, 'safety', 'safety');
+    tryAssign(obj, 'safety_score', 'safety');
+    tryAssign(obj, 'value', 'value');
+    tryAssign(obj, 'value_score', 'value');
+  };
+
+  // Object containers
+  const cands = raw.normalizedScore || raw.subscores || raw.scores || raw.categories || null;
+  if (cands && typeof cands === 'object' && !Array.isArray(cands)) scan(cands);
+
+  // Array of name/score objects
+  const arrScores = Array.isArray(raw.scores) ? raw.scores : (Array.isArray(raw.categories) ? raw.categories : null);
+  if (Array.isArray(arrScores)) {
+    for (const item of arrScores) {
+      const name = String(item?.key || item?.name || item?.title || '').toLowerCase();
+      const score = toNum(item?.score ?? item?.value);
+      if (name.includes('purity')) out.purity = out.purity ?? score;
+      if (name.includes('effect')) out.effectiveness = out.effectiveness ?? score;
+      if (name.includes('safety')) out.safety = out.safety ?? score;
+      if (name.includes('value')) out.value = out.value ?? score;
+    }
+  }
+
+  // rubric arrays like [{key:'Purity', score:78}, ...]
+  const rub = raw.rubric || raw.dimensions || null;
+  if (Array.isArray(rub)) {
+    for (const item of rub) {
+      const name = String(item?.key || item?.name || item?.title || '').toLowerCase();
+      const score = toNum(item?.score);
+      if (name.includes('purity')) out.purity = out.purity ?? score;
+      if (name.includes('effect')) out.effectiveness = out.effectiveness ?? score;
+      if (name.includes('safety')) out.safety = out.safety ?? score;
+      if (name.includes('value')) out.value = out.value ?? score;
+    }
+  }
+
+  // keys[] + scores[] parallel arrays
+  const keysArr: any[] | null = Array.isArray(raw.keys) ? raw.keys : (Array.isArray(raw.labels) ? raw.labels : null);
+  const valsArr: any[] | null = Array.isArray(raw.values) ? raw.values : (Array.isArray(raw.scores) ? raw.scores : null);
+  if (keysArr && valsArr) {
+    const n = Math.min(keysArr.length, valsArr.length);
+    for (let i = 0; i < n; i++) {
+      const name = String(keysArr[i] ?? '').toLowerCase();
+      const score = toNum(valsArr[i]);
+      if (name.includes('purity')) out.purity = out.purity ?? score;
+      if (name.includes('effect')) out.effectiveness = out.effectiveness ?? score;
+      if (name.includes('safety')) out.safety = out.safety ?? score;
+      if (name.includes('value')) out.value = out.value ?? score;
+    }
+  }
+
+  return out;
+}
+
+function normalizeScoreResponse(raw: any, extract?: any): UIScoreResult {
+  const title: string = (extract?.title as string) || raw?.title || 'Product';
+  const overall: number | null = toNum(raw?.overallScore ?? raw?.overall_score ?? raw?.score ?? raw?.total);
+  const grade: string | null = (raw?.grade ?? raw?.letterGrade ?? raw?.letter_grade ?? null) as string | null;
+  const subs = extractSubscores(raw);
+  const strengths = Array.isArray(raw?.pros) ? raw.pros : (Array.isArray(raw?.strengths) ? raw.strengths : []);
+  const concerns = Array.isArray(raw?.cons) ? raw.cons : (Array.isArray(raw?.concerns) ? raw.concerns : []);
+
+  // derive serving size if present
+  const serving_size = (raw?.serving_size ?? extract?.serving_size ?? null) as string | null;
+
+  // bridge ingredients if present at extract
+  const ingredients = Array.isArray(extract?.ingredients) ? extract.ingredients : null;
+  const ingredients_raw = typeof extract?.ingredients_raw === 'string' ? extract.ingredients_raw : null;
+
+  return {
+    title,
+    overallScore: overall,
+    overallGrade: grade ?? null,
+    normalizedScore: subs, // always present with 4 keys (null if missing)
+    strengths,
+    concerns,
+    ingredients,
+    ingredients_raw,
+    serving_size,
+    meta: {},
+  };
+}
+
 /**
- * Generate SHA256 hash for cache key
+ * Generate versioned cache key
  */
 function generateCacheKey(url: string): string {
-  const hash = CryptoJS.SHA256(url).toString(CryptoJS.enc.Hex);
-  return `${CACHE_PREFIX}${hash}`;
+  // PATCH: use explicit versioned key format
+  return `cache:extract:${EXTRACT_SCHEMA_VERSION}:${url}`;
 }
 
 /**
@@ -163,6 +289,8 @@ export type ExtractPayload = {
     };
   } | null;
   _meta?: Record<string, any>;
+  // PATCH: allow bridging when only raw string is provided by upstream
+  ingredients_raw?: string;
 };
 
 export type ChainResult = {
@@ -190,6 +318,14 @@ export type ChainResult = {
   parsed?: any;
   error?: any;
   _meta?: any;
+  // AUDIT: UI bridge fields added (non-breaking)
+  title?: string;
+  overallScore?: number | null;
+  overallGrade?: string | null;
+  normalizedScore?: UISubScores | null;
+  strengths?: string[];
+  ingredients_raw?: string | null;
+  serving_size?: string | null;
 };
 
 // Cache-related types
@@ -210,20 +346,28 @@ export class RateLimitError extends Error {
  * Resilient chain that always returns a valid ChainResult
  * Now with caching and rate limiting
  */
-export async function chainExtractToScore(url: string): Promise<ChainResult> {
+export async function chainExtractToScore(url: string, opts?: { force?: boolean }): Promise<ChainResult> {
   const startTime = Date.now();
+  const force = !!opts?.force; // PATCH: optional force flag
   
   if (__DEV__) {
-    console.log('[chain] ⏳ Starting chainExtractToScore for:', url);
+    console.log('[chain] ⏳ Starting chainExtractToScore for:', url, force ? '(force)' : '');
   }
   
-  // Check cache first
-  const cachedResult = await getCachedResult(url);
-  if (cachedResult) {
-    if (__DEV__) {
-      console.log('[chain] ✅ Returning cached result for:', url);
+  // Check cache first (unless forced)
+  if (__DEV__) {
+    console.log('[cache] Checking cache for', url);
+  }
+  if (!force) {
+    const cachedResult = await getCachedResult(url);
+    if (cachedResult) {
+      if (__DEV__) {
+        console.log('[chain] ✅ Returning cached result for:', url);
+      }
+      return cachedResult as any;
     }
-    return cachedResult;
+  } else if (__DEV__) {
+    console.log('[cache] ⛔ Force bypass requested, skipping cache read for:', url);
   }
   
   // Check rate limit before making network requests
@@ -255,6 +399,7 @@ export async function chainExtractToScore(url: string): Promise<ChainResult> {
       chain: []
     }
   };
+  let finalOut: any = null; // AUDIT: normalized object to return
 
   if (__DEV__) console.log('[chain] Starting extraction for:', url);
 
@@ -309,6 +454,9 @@ export async function chainExtractToScore(url: string): Promise<ChainResult> {
     addChainStep('firecrawl-extract', 'ok', extractMs);
 
     const extractData: ExtractPayload = extractRes.data || {};
+
+    // PATCH: attach extract meta for UI bridges (ingredients_raw, title telemetry)
+    result.meta.extract = extractData;
 
     // Update product data from extract
     result.product = {
@@ -395,7 +543,14 @@ export async function chainExtractToScore(url: string): Promise<ChainResult> {
         facts_kind,
         numeric_doses_present,
         ingredients_source,
-        product_type_hint
+        product_type_hint,
+        // AUDIT: hint expected response schema for scorer implementations
+        expected_schema: {
+          overall: 'number',
+          subs: { purity: '0-100|null', effectiveness: '0-100|null', safety: '0-100|null', value: '0-100|null' },
+          highlights: 'string[]',
+          concerns: 'string[]'
+        }
       }
     };
 
@@ -433,6 +588,19 @@ export async function chainExtractToScore(url: string): Promise<ChainResult> {
         }
       } else {
         s = raw;
+      }
+
+      // AUDIT: log raw score shape for dev debugging
+      if (__DEV__) {
+        try {
+          // eslint-disable-next-line no-console
+          console.debug('[score][raw]', {
+            keys: Object.keys(s || {}),
+            grade: s?.grade ?? s?.overallGrade ?? s?.letterGrade,
+            overall: s?.overall_score ?? s?.overallScore ?? s?.score,
+            subs: s?.normalizedScore ?? s?.subscores ?? s?.scores,
+          });
+        } catch {}
       }
 
       // Normalize score data with explicit type guards - allow 0 for truly unanalyzable products
@@ -480,6 +648,36 @@ export async function chainExtractToScore(url: string): Promise<ChainResult> {
 
       result.meta.score = s._meta;
 
+      // AUDIT: create stable UI result fields
+      const ui = normalizeScoreResponse(s, { 
+        title: result.product.title,
+        ingredients: result.product.ingredients,
+        ingredients_raw: (result.meta.extract as any)?.ingredients_raw,
+        serving_size: (result.meta.extract as any)?._meta?.serving_size,
+      });
+      ui.meta = { extract: result.meta.extract, score: s };
+
+      // attach for UI consumers on the legacy object too
+      result.title = ui.title;
+      result.overallScore = ui.overallScore;
+      result.overallGrade = ui.overallGrade ?? undefined;
+      result.normalizedScore = ui.normalizedScore ?? undefined;
+      result.strengths = ui.strengths ?? [];
+      result.serving_size = ui.serving_size ?? undefined;
+      result.ingredients_raw = ui.ingredients_raw ?? undefined;
+
+      if (__DEV__) {
+        // eslint-disable-next-line no-console
+        console.debug('[score][normalized]', {
+          overall: result.overallScore,
+          grade: result.overallGrade,
+          subs: result.normalizedScore,
+        });
+      }
+
+      // AUDIT: prefer returning the normalized UI shape
+      finalOut = { ...ui };
+
       if (__DEV__) console.log('[chain] Score parsed successfully:', { score: scoreNum, highlights, concerns });
     } else {
       addChainStep('score-supplement', 'error', scoreMs, scoreRes.error || 'Score not ok');
@@ -498,8 +696,7 @@ export async function chainExtractToScore(url: string): Promise<ChainResult> {
     result.meta.error = error.message || String(error);
   }
 
-  // If we reached scorer, even with weak facts, do not imply 'service unavailable'.
-  // The UI should show that banner ONLY when meta.score?.error is present.
+  // The UI should show service unavailable banner ONLY when meta.score?.error is present.
 
   result.meta.ts = Date.now() - startTime;
 
@@ -510,8 +707,9 @@ export async function chainExtractToScore(url: string): Promise<ChainResult> {
     });
   }
 
-  // Cache successful results (those that got at least extract data)
+  // Cache successful results unless forced
   if (result.product.title !== 'Unknown Product' || result.product.ingredients.length > 0) {
+    // Always update cache with fresh result, even on force
     await setCachedResult(url, result);
   }
 
@@ -525,5 +723,11 @@ export async function chainExtractToScore(url: string): Promise<ChainResult> {
     result.error = { message: result.meta.error };
   }
 
+  // AUDIT: return normalized if available, else legacy result
+  if (finalOut) {
+    // ensure meta included
+    finalOut.meta = finalOut.meta || { extract: result.meta.extract, score: (result.meta as any)?.score };
+    return finalOut as any;
+  }
   return result;
 }

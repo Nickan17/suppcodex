@@ -7,14 +7,10 @@ module.exports = function (api) {
         'module-resolver',
         {
           root: ['.'],
-          alias: {
-            '@': './src',
-            '@/design-system': './src/design-system',
-            '@/components': './components',
-            '@/src': './src',
-          },
+          alias: { '@': './src' },
         },
       ],
+      'expo-router/babel',
     ],
   };
 };

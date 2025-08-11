@@ -2,10 +2,11 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import ScoreRing from '../../../ui/ScoreRing/ScoreRing';
 import { useTheme } from '../../../../design-system/theme';
+import { getGrade } from '../../../../utils/getGrade';
 
 interface ScoreHeaderProps {
   title: string;
-  score: number;
+  score: number | null;
   grade?: string;
   subtitle?: string;
   ringColor?: string;
@@ -20,12 +21,8 @@ const ScoreHeader: React.FC<ScoreHeaderProps> = ({
   ringColor,
   onDebugPress,
 }) => {
-  console.log('ScoreHeader deps:', {
-    ScoreRing: typeof ScoreRing,
-    useTheme: typeof useTheme,
-  });
-  
   const { colors, fonts, spacing } = useTheme();
+  const effectiveGrade = grade ?? getGrade(score);
 
   return (
     <View style={styles.container}>
@@ -33,23 +30,27 @@ const ScoreHeader: React.FC<ScoreHeaderProps> = ({
         fontFamily: fonts.body.family, 
         color: colors.textPrimary,
         marginBottom: spacing[6]
-      }]}>
+      }]} 
+        numberOfLines={2}
+      >
         {subtitle}
       </Text>
       
       <View style={[styles.scoreContainer, { marginBottom: spacing[4] }]}>
         <ScoreRing 
           size={200} 
-          score={score === 0 ? null : score} 
+          score={score}
           progressColor={ringColor}
-          grade={grade || (score === 0 ? '—' : String(score))}
+          grade={effectiveGrade}
         />
       </View>
       
       <Text style={[styles.productName, { 
         fontFamily: fonts.body.family, 
         color: colors.textPrimary
-      }]}>
+      }]} 
+        numberOfLines={1}
+      >
         {title}
       </Text>
     </View>

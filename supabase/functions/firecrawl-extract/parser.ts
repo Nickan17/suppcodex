@@ -20,10 +20,12 @@ export interface ParsedProduct {
     factsSource?: string;
     factsTokens?: number;
     ocrTried?: boolean;
-    ocrPicked?: string;
+    ocrPicked?: boolean; // AUDIT: boolean
     facts_kind?: string;
     ingredients_source?: string;
     had_numeric_doses?: boolean;
+    pageTitleRaw?: string;
+    titleSource?: string;
   };
 }
 
@@ -677,10 +679,41 @@ export async function parseProductPage(
 ): Promise<ParsedProduct> {
   console.log('[PARSER] Starting supplement extraction');
   
-  let title = extractTitle(html);
+  let title = extractTitle(html, url); // AUDIT: pass pageUrl for URL fallback
   
   // Parse with DOM
   const doc = new DOMParser().parseFromString(html, "text/html");
+  
+  // Preferred title selection for telemetry
+  let pageTitleRaw: string | undefined;
+  let titleSource: string | undefined;
+  try {
+    const h1 = doc?.querySelector("h1.product__title, h1.product-title, h1[itemprop='name'], h1.product-single__title, h1")?.textContent?.trim() || '';
+    const og = doc?.querySelector("meta[property='og:title']")?.getAttribute("content")?.trim() || '';
+    let ldName: string | undefined;
+    for (const s of (doc?.querySelectorAll("script[type='application/ld+json']") || [])) {
+      try {
+        const data = JSON.parse(s.textContent || '');
+        const items = Array.isArray(data) ? data : [data];
+        for (const item of items) {
+          if ((item['@type'] === 'Product' || item.name) && typeof item.name === 'string') {
+            ldName = item.name.trim();
+            break;
+          }
+        }
+        if (ldName) break;
+      } catch { /* ignore */ }
+    }
+    const candidates: Array<{val: string; src: string}> = [];
+    if (h1) candidates.push({ val: h1, src: 'h1' });
+    if (og) candidates.push({ val: og, src: 'og' });
+    if (ldName) candidates.push({ val: ldName, src: 'ldjson' });
+    const looksLikeReview = (s: string) => /reviews?|rating|write a review|see all reviews/i.test(s);
+    for (const c of candidates) {
+      if (!looksLikeReview(c.val)) { pageTitleRaw = c.val; titleSource = c.src; break; }
+    }
+    if (!title && pageTitleRaw) title = pageTitleRaw;
+  } catch { /* noop */ }
   
   // --- Cellucor / Shopify title fallback ---
   if (!title) {
@@ -730,6 +763,9 @@ export async function parseProductPage(
       parserSteps: []
     }
   };
+  if (!result._meta) result._meta = { parserSteps: [] };
+  if (pageTitleRaw) result._meta.pageTitleRaw = pageTitleRaw;
+  if (titleSource) result._meta.titleSource = titleSource;
   
   // Augment with enhanced extraction
   await augmentFactsAndIngredients(doc, html, result, url, env);
@@ -806,7 +842,7 @@ export async function parseProductPage(
   result._meta.factsSource = factsSource;
   result._meta.factsTokens = factsTokens;
   result._meta.ocrTried = ocrTried;
-  result._meta.ocrPicked = ocrPicked ? 'true' : undefined;
+  result._meta.ocrPicked = !!ocrPicked; // AUDIT: boolean
   result._meta.facts_kind = facts_kind;
   result._meta.ingredients_source = ingredients_source;
   result._meta.had_numeric_doses = result.numeric_doses_present;
@@ -835,86 +871,46 @@ export async function parseProductPage(
 }
 
 /** Try multiple selectors and return the first non‑empty product title */
-export function extractTitle(html: string): string | null {
-  // Optionally slice large HTML
+export function extractTitle(html: string, pageUrl?: string | null): string | null {
   if (html.length > 100_000) html = html.slice(0, 100_000);
   const doc = new DOMParser().parseFromString(html, "text/html");
   if (!doc) {
     return null;
   }
-  const candidates = [
-    doc?.querySelector("h1[itemprop='name']")?.textContent,
-    doc?.querySelector("h1.product__title")?.textContent,
-    doc?.querySelector("h1.product-single__title")?.textContent,
-    doc?.querySelector("meta[property='og:title']")?.getAttribute("content"),
-    doc?.querySelector("meta[name='title']")?.getAttribute("content"),
-    doc?.querySelector("title")?.textContent,
-    doc?.querySelector("meta[name='description']")?.getAttribute("content"),
-    doc?.querySelectorAll("title")[0]?.textContent,
-  ];
-  const filtered = candidates
-    .map((t) => t?.trim())
-    .filter((t) => t)
-    .filter((t) => !(/^customer reviews/i.test(t) && t.length > 100)); // Skip titles that start with reviews and are long
-
-  // Fallback: regex for <title>
-  if (!filtered.length) {
-    const m = html.match(/<title[^>]*>([^<]*)<\/title>/i);
-    if (m) filtered.push(m[1].trim());
-  }
-  
-  let title = filtered[0];
-  
-  if (title) {
-    const looksLikeReviews = /customer reviews|see all reviews|write a review|most recent|highest rating|lowest rating|pictures|videos|most helpful/i.test(title);
-    if (looksLikeReviews || title.length > 120) {
-      title = null;
-    }
-  }
-  
-  // before other fallbacks:
-  const h1Title = doc.querySelector('h1.product__title, h1.product-title, h1.product-single__title')?.textContent?.trim();
-  if (!title && h1Title) title = h1Title;
-  
-  if (!title) {
-    const og = doc.querySelector("meta[property='og:title']")?.getAttribute("content")?.trim();
-    if (og) title = og;
-  }
-  
-  if (!title) {
-    const ld = doc.querySelector("script[type='application/ld+json']")?.textContent;
-    if (ld) { try { const j = JSON.parse(ld); if (j?.name) title = j.name.trim(); } catch (err) { console.warn('[parser json]', err); } }
-  }
-  
-  if (title) {
-    // Clean up Customer Reviews pollution
-    if (title && /customer reviews/i.test(title)) {
-      // Try multiple sources for clean title
-      const og = doc.querySelector("meta[property='og:title']")?.getAttribute("content")?.trim();
-      const h1 = doc.querySelector("h1.product__title, h1.product-title, h1.product-single__title, h1")?.textContent?.trim();
-      const productName = doc.querySelector(".product-single__title, .product__title, .product-title, [data-product-title]")?.textContent?.trim();
-      
-      // Use the cleanest available source, or fallback to generic supplement name
-      const cleanTitle = og || productName || h1;
-      if (cleanTitle && !(/customer reviews/i.test(cleanTitle))) {
-        title = cleanTitle;
-      } else {
-        // Last resort: try to extract product name from URL or use generic name
-        const urlMatch = url?.match(/\/products\/([^\/\?]+)/);
-        const productSlug = urlMatch?.[1]?.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-        title = productSlug || 'Supplement Product';
+  // Preferred order: h1, og:title, JSON-LD name
+  const h1 = doc.querySelector("h1.product__title, h1.product-title, h1[itemprop='name'], h1.product-single__title, h1")?.textContent?.trim();
+  const og = doc.querySelector("meta[property='og:title']")?.getAttribute("content")?.trim();
+  let ldName: string | null = null;
+  for (const s of doc.querySelectorAll("script[type='application/ld+json']")) {
+    try {
+      const data = JSON.parse(s.textContent || '');
+      const items = Array.isArray(data) ? data : [data];
+      for (const item of items) {
+        if ((item['@type'] === 'Product' || item.name) && typeof item.name === 'string') {
+          ldName = item.name.trim();
+          break;
+        }
       }
-    }
-    
-    // Clean up whitespace, remove control characters, and limit length
-    const sanitizedTitle = sanitize(title);
-    if (sanitizedTitle && sanitizedTitle.length > 250) {
-      title = sanitizedTitle.substring(0, 250).trim() + '...';
-    } else {
-      title = sanitizedTitle || undefined;
-    }
+      if (ldName) break;
+    } catch { /* ignore */ }
   }
-  return title || null;
+  const candidates = [h1, og, ldName].filter(Boolean) as string[];
+  const looksLikeReview = (s: string) => /reviews?|rating|write a review|see all reviews/i.test(s);
+  let chosen: string | null = null;
+  for (const c of candidates) {
+    if (!looksLikeReview(c)) { chosen = c; break; }
+  }
+  if (!chosen && pageUrl) {
+    try {
+      const u = new URL(pageUrl);
+      const slug = u.pathname.split('/').filter(Boolean).pop() || '';
+      if (slug) {
+        const pretty = decodeURIComponent(slug).replace(/[-_+]+/g, ' ').replace(/\s+/g, ' ').trim();
+        if (pretty) chosen = pretty.replace(/\b([a-z])/g, (_, c) => c.toUpperCase());
+      }
+    } catch { /* noop */ }
+  }
+  return chosen;
 }
 
 /** Simple ingredients extraction */

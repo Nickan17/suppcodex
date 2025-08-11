@@ -32,7 +32,7 @@ interface ExtractMeta {
   factsSource?: string;
   factsTokens?: number;
   ocrTried?: boolean;
-  ocrPicked?: string;
+  ocrPicked?: boolean; // AUDIT: boolean
 }
 
 interface ParsedResult {
@@ -116,6 +116,12 @@ async function fetchWithTimeout(
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+// AUDIT: Single source of truth for facts tokens
+function countFactsTokensFromParsed(p?: { supplementFacts?: { raw?: string } }): number {
+  const raw = p?.supplementFacts?.raw ?? '';
+  return raw.trim() ? (raw.match(/(serving size|amount per serving|% dv|calories|protein|mg|mcg|iu|supplement\s+facts|nutrition\s+facts)/gi) || []).length : 0;
 }
 
 /**
@@ -234,7 +240,7 @@ function stripReviewsBlob(s: string): string {
     const m = cut.search(rx);
     if (m > -1) cut = cut.slice(0, m);
   }
-  return cut.trim().slice(0, 2000);
+  return cut.trim().slice(0, 4000); // AUDIT: clamp to 4000
 }
 
 /**
@@ -243,11 +249,15 @@ function stripReviewsBlob(s: string): string {
 function looksThin(parsedResult: any, hasNumericDoses: boolean = false, factsTokens: number = 0): boolean {
   if (!parsedResult) return true;
   
-  // Updated guard logic: check ingredients_raw length instead of count
-  const ingredientsLength = parsedResult.ingredients_raw?.length || 0;
-  
-  return /404/i.test(parsedResult.title || "") ||
-         (ingredientsLength < 40 && factsTokens < 2);
+  // AUDIT: consider array length OR raw length, tokens and title presence
+  const hasIngredients = Array.isArray(parsedResult.ingredients) ? parsedResult.ingredients.length > 0 : false;
+  const ingredientsRawLen = typeof parsedResult.ingredients_raw === 'string' ? parsedResult.ingredients_raw.length : 0;
+  const titleOk = typeof parsedResult.title === 'string' && parsedResult.title.trim().length > 0 && !/404/i.test(parsedResult.title);
+
+  const weakIngredients = !hasIngredients && ingredientsRawLen < 40;
+  const weakFacts = factsTokens < 2;
+
+  return !titleOk || (weakIngredients && weakFacts);
 }
 
 /**
@@ -675,7 +685,7 @@ async function handler(request: Request): Promise<Response> {
       return jsonResponse({
         error: "config",
         message: "FIRECRAWL_API_KEY missing",
-      }, 400);
+      }, 400); // AUDIT: 400 for config
     }
 
     // 2. Parse and validate input
@@ -714,11 +724,12 @@ async function handler(request: Request): Promise<Response> {
     
     let finalResult = shopifyResult;
     let data: any = {};
-    let parsedRich: ParsedResult | null = shopifyResult;
+    let parsedRich: any = shopifyResult;
     
     // Check if Shopify result looks thin
     const hasNumericDoses = shopifyStep.status === "ok" && !shopifyStep.hint?.includes("No numeric doses");
-    const shopifyThin = looksThin(shopifyResult, hasNumericDoses);
+    const shopifyFactsTokens = countFactsTokensFromParsed({ supplementFacts: { raw: shopifyResult?.supplementFacts?.raw || '' } });
+    const shopifyThin = looksThin(shopifyResult, hasNumericDoses, shopifyFactsTokens);
     
     if (shopifyThin) {
       console.log(`📱 Shopify JSON was thin, trying Firecrawl...`);
@@ -750,7 +761,7 @@ async function handler(request: Request): Promise<Response> {
           error: "config",
           message: "SCRAPFLY_API_KEY missing for fallback",
           _meta: meta,
-        }, 500);
+        }, 400); // AUDIT: 400 for config
       }
 
       const { result: scrapflyResult, step: scrapflyStep } = await callScrapfly(url, scrapflyApiKey);
@@ -780,17 +791,14 @@ async function handler(request: Request): Promise<Response> {
     }
 
     // Final thin content guard - if still thin after all providers, throw error
-    const initialFactsTokens = countFactsTokens(
-      parsedRich?.supplementFacts?.raw ??
-      parsedRich?.supplement_facts ?? ''
-    );
+    const initialFactsTokens = countFactsTokensFromParsed({ supplementFacts: { raw: parsedRich?.supplement_facts || '' } });
     if (looksThin(parsedRich, false, initialFactsTokens)) {
-      throw new Error("Thin content – fallback failed");
+      return jsonResponse({ error: "empty_parse", message: "No usable content parsed", _meta: meta }, 422); // AUDIT: proper 422
     }
 
     // Check if we need second pass
-    const factsTokens = countFactsTokens(parsedRich.supplement_facts || '');
-    const shouldDoSecondPass = needsSecondPass(parsedRich, factsTokens);
+    const factsTokens = countFactsTokensFromParsed({ supplementFacts: { raw: parsedRich?.supplement_facts || '' } });
+    const shouldDoSecondPass = (parsedRich?.title || parsedRich?.supplement_facts) && factsTokens < 2; // AUDIT: second pass only when anemic
 
     if (shouldDoSecondPass) {
       console.log(`🔄 Triggering second pass for ${url} (factsTokens: ${factsTokens})`);
@@ -814,21 +822,24 @@ async function handler(request: Request): Promise<Response> {
     }
 
     // Map ParsedProduct -> our SuccessResponse
-    const ingredientsArray =
-      parsedRich.ingredients_raw
-        ? parsedRich.ingredients_raw
-            .replace(/^ingredients?:/i, '')
-            .split(/[,;\n]/)
-            .map(s => s.trim())
-            .filter(Boolean)
-        : [];
+    const ingredientsArray = Array.isArray(parsedRich?.ingredients)
+      ? parsedRich.ingredients
+      : (parsedRich?.ingredients_raw
+          ? parsedRich.ingredients_raw
+              .replace(/^ingredients?:/i, '')
+              .split(/[,;\n]/)
+              .map((s: string) => s.trim())
+              .filter((s: string) => s.length > 0)
+          : []);
 
-    const factsRaw =
-      parsedRich.supplement_facts
-        || '';
+    // AUDIT: clamp ingredients length and dedupe
+    const ingredientsDedupe = Array.from(new Set(ingredientsArray)).slice(0, 200);
+
+    // Clamp supplement facts
+    const factsRaw = (parsedRich.supplement_facts || '').slice(0, 4000);
 
     // Add OCR and facts telemetry to meta
-    const finalFactsTokens = countFactsTokens(factsRaw);
+    const finalFactsTokens = countFactsTokensFromParsed({ supplementFacts: { raw: factsRaw } });
     
     // Prepare warnings array with optional numeric doses concern
     let warnings = parsedRich.warnings && parsedRich.warnings.length
@@ -842,12 +853,13 @@ async function handler(request: Request): Promise<Response> {
 
     const out: SuccessResponse = {
       title: parsedRich.title || 'Unknown Product',
-      ingredients: ingredientsArray,
-      supplementFacts: factsRaw ? { raw: factsRaw } : undefined,
+      ingredients: ingredientsDedupe,
+      supplementFacts: factsRaw ? { raw: stripReviewsBlob(factsRaw) } : undefined,
       warnings: warnings,
       // raw: firecrawlResult, // Raw output removed to prevent invalid JSON errors
       _meta: {
         ...meta,
+        requestUrl: url,
         parser: {
           steps: parsedRich._meta?.parserSteps ?? [],
           numeric_doses_present: parsedRich.numeric_doses_present ?? false
@@ -856,17 +868,14 @@ async function handler(request: Request): Promise<Response> {
         factsSource: parsedRich._meta?.factsSource,
         factsTokens: finalFactsTokens,
         ocrTried: parsedRich._meta?.ocrTried || false,
-        ocrPicked: parsedRich._meta?.ocrPicked,
+        ocrPicked: !!parsedRich._meta?.ocrPicked, // AUDIT: boolean
         facts_kind: parsedRich._meta?.facts_kind,
         ingredients_source: parsedRich._meta?.ingredients_source,
-        had_numeric_doses: parsedRich._meta?.had_numeric_doses
+        had_numeric_doses: parsedRich._meta?.had_numeric_doses,
+        pageTitleRaw: parsedRich._meta?.pageTitleRaw || undefined,
+        titleSource: parsedRich._meta?.titleSource || undefined,
       }
     };
-    
-    // Optional: Trim large review blobs server side
-    if (out.supplementFacts?.raw) {
-      out.supplementFacts.raw = stripReviewsBlob(out.supplementFacts.raw);
-    }
     
     // 5. Check if we got usable content
     const hasAny =
@@ -896,7 +905,7 @@ async function handler(request: Request): Promise<Response> {
       error: "provider_error",
       message: errorMessage,
       _meta: meta,
-    }, 400);
+    }, 502); // AUDIT: 502 for provider errors
   }
 }
 

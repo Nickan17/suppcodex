@@ -4,21 +4,23 @@ import Card from './ui/Card'; // Using local Card component
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import { useTheme } from '@/design-system';
+import { getGrade } from '@/utils/getGrade';
 
 type Props = {
-  score: number;
-  pros: string[];
-  cons: string[];
+  score: number | null;
+  pros?: string[];
+  cons?: string[];
 };
 
 export default function ScoreCard({ score, pros = [], cons = [] }: Props) {
   const { colors } = useTheme();
   const cardRef = useRef<View>(null);
-  const grade = score >= 80 ? 'A' : score >= 60 ? 'B' : 'C';
+  const grade = getGrade(score);
 
   const gradeColor = (grade: string) => {
-    return grade === 'A' ? (colors.score?.good ?? colors.semantic.success) : 
-           grade === 'B' ? (colors.score?.medium ?? colors.semantic.warning) : 
+    return grade.startsWith('A') ? (colors.score?.good ?? colors.semantic.success) : 
+           grade.startsWith('B') ? (colors.score?.medium ?? colors.semantic.warning) : 
+           grade === '—' ? colors.textSecondary :
            (colors.score?.bad ?? colors.semantic.error);
   };
 
@@ -32,17 +34,21 @@ export default function ScoreCard({ score, pros = [], cons = [] }: Props) {
       <Card>
         <View style={styles.header}>
           <Text style={[styles.badge, { backgroundColor: gradeColor(grade) }]}>{grade}</Text>
-          <Text style={styles.score}>{score}/100</Text>
+          <Text style={styles.score}>{typeof score === 'number' ? `${score}/100` : '— / 100'}</Text>
         </View>
 
-        <Text style={styles.sectionTitle}>Pros</Text>
-        {pros.slice(0, 3).map((p) => (
-          <Text key={p}>• {p}</Text>
+        {pros.length > 0 && (
+          <Text style={styles.sectionTitle}>Pros</Text>
+        )}
+        {pros.slice(0, 3).map((p, idx) => (
+          <Text key={`${p}-${idx}`}>• {p}</Text>
         ))}
 
-        <Text style={styles.sectionTitle}>Cons</Text>
-        {cons.slice(0, 3).map((c) => (
-          <Text key={c}>• {c}</Text>
+        {cons.length > 0 && (
+          <Text style={styles.sectionTitle}>Cons</Text>
+        )}
+        {cons.slice(0, 3).map((c, idx) => (
+          <Text key={`${c}-${idx}`}>• {c}</Text>
         ))}
       </Card>
     </Pressable>

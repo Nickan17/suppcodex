@@ -70,10 +70,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen name="paste" options={{ href: null }} />
-      <Tabs.Screen name="scan" options={{ href: null }} />
-      <Tabs.Screen name="compare/new" options={{ href: null }} />
-      <Tabs.Screen name="compare/[id]" options={{ href: null }} />
+      {/* AUDIT: removed extraneous routes to prevent layout warnings */}
     </Tabs>
   );
 }
