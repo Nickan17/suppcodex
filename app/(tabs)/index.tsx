@@ -19,7 +19,7 @@ export default function HomeScreen() {
   const handleAnalyzeTestUrl = async () => {
     setIsLoading(true);
     try {
-      const product = await chainExtractToScore(testUrl);
+      const product = await chainExtractToScore(testUrl, { force: true });
       
       // Store product in context
       setProduct(product);

@@ -40,7 +40,7 @@ function toIngredientChips(result: ScoreResult): string[] {
 
 export default function ScoreScreen() {
   const { colors } = useTheme();
-  const [url, setUrl] = useState<string>(''); // ensure your navigation/params set this
+  const [url, setUrl] = useState<string>('https://magnumsupps.com/en-us/products/quattro'); // Test URL
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ScoreResult | null>(null);
 

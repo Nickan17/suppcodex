@@ -20,6 +20,7 @@ const config = {
       supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL ?? '',
       supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '',
       firecrawlExtractUrl: process.env.EXPO_PUBLIC_FIRECRAWL_EXTRACT_URL ?? '',
+      scoreSupplementUrl: process.env.EXPO_PUBLIC_SCORE_SUPPLEMENT_URL ?? '',
       openrouterApiKey: process.env.EXPO_PUBLIC_OPENROUTER_API_KEY ?? '',
       eas: { projectId: 'eed8a4b9-e354-47f0-9b92-b602a1e91e17' },
     },

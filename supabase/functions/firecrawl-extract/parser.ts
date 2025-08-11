@@ -408,6 +408,7 @@ async function augmentFactsAndIngredients(doc: any, html: string, result: Parsed
     if (!result.ingredients_raw) {
       try {
         for (const node of walkDOM(doc.documentElement || doc)) {
+          if (isExcluded(node)) continue;
           if (node.textContent && /ingredient/i.test(node.textContent)) {
             const text = node.textContent.replace(/\s+/g, ' ').trim();
             if (text.length >= 100) {
@@ -550,6 +551,7 @@ async function augmentFactsAndIngredients(doc: any, html: string, result: Parsed
     if (!result.supplement_facts) {
       try {
         for (const node of walkDOM(doc.documentElement || doc)) {
+          if (isExcluded(node)) continue;
           if (node.textContent && /nutrition facts|supplement facts/i.test(node.textContent)) {
             const text = node.textContent.replace(/\s+/g, ' ').trim();
             if (text.length >= 300) {

@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import CryptoJS from 'crypto-js';
 
 // PATCH: schema version for cache keys
-export const EXTRACT_SCHEMA_VERSION = 'v4';
+export const EXTRACT_SCHEMA_VERSION = 'v5';
 
 // Cache configuration
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -34,12 +34,10 @@ const stripHtmlToText = (html: string) =>
     .trim() || '';
 
 // AUDIT: normalize number into [0,100] or null
-const toNum = (v: any): number | null => {
-  if (v === null || v === undefined || v === '') return null;
-  const n = Number(v);
-  if (!Number.isFinite(n)) return null;
-  return Math.max(0, Math.min(100, Math.round(n)));
-};
+function toNum(x: any): number | null {
+  const n = Number(x);
+  return Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : null;
+}
 
 // AUDIT: adapter for score function responses
 export type UISubScores = { purity?: number | null; effectiveness?: number | null; safety?: number | null; value?: number | null };
@@ -79,8 +77,11 @@ function extractSubscores(raw: any): UISubScores {
     tryAssign(obj, 'value_score', 'value');
   };
 
-  // Object containers
-  const cands = raw.normalizedScore || raw.subscores || raw.scores || raw.categories || null;
+  // PRIORITY 1: Check for flat structure (current score-supplement format)
+  scan(raw);
+
+  // PRIORITY 2: Object containers (legacy support)
+  const cands = raw.normalizedScore || raw.subscores || raw.scores || raw.categories || raw.subs || null;
   if (cands && typeof cands === 'object' && !Array.isArray(cands)) scan(cands);
 
   // Array of name/score objects
@@ -127,33 +128,40 @@ function extractSubscores(raw: any): UISubScores {
   return out;
 }
 
-function normalizeScoreResponse(raw: any, extract?: any): UIScoreResult {
-  const title: string = (extract?.title as string) || raw?.title || 'Product';
-  const overall: number | null = toNum(raw?.overallScore ?? raw?.overall_score ?? raw?.score ?? raw?.total);
-  const grade: string | null = (raw?.grade ?? raw?.letterGrade ?? raw?.letter_grade ?? null) as string | null;
-  const subs = extractSubscores(raw);
-  const strengths = Array.isArray(raw?.pros) ? raw.pros : (Array.isArray(raw?.strengths) ? raw.strengths : []);
-  const concerns = Array.isArray(raw?.cons) ? raw.cons : (Array.isArray(raw?.concerns) ? raw.concerns : []);
+function pickSub(raw: any, names: string[]): number | null {
+  for (const name of names) {
+    const n = toNum(raw?.[name]);
+    if (n !== null) return n;
+  }
+  return null;
+}
 
-  // derive serving size if present
-  const serving_size = (raw?.serving_size ?? extract?.serving_size ?? null) as string | null;
+function normalizeScoreResponse(rawScore: any, extract?: any): UIScoreResult {
+  const subs = rawScore?.subs || rawScore?.subscores || rawScore?.scores || rawScore?.categories || rawScore;
 
-  // bridge ingredients if present at extract
-  const ingredients = Array.isArray(extract?.ingredients) ? extract.ingredients : null;
-  const ingredients_raw = typeof extract?.ingredients_raw === 'string' ? extract.ingredients_raw : null;
+  const purity = pickSub(subs, ['purity', 'purity_score', 'Purity']);
+  const effectiveness = pickSub(subs, ['effectiveness', 'effectiveness_score', 'Effectiveness']);
+  const safety = pickSub(subs, ['safety', 'safety_score', 'Safety']);
+  const value = pickSub(subs, ['value', 'value_score', 'Value']);
 
-  return {
-    title,
+  const overall = toNum(rawScore?.overall ?? rawScore?.score);
+  const grade = rawScore?.grade || undefined;
+
+  const out = {
+    title: extract?.title || 'Product',
     overallScore: overall,
-    overallGrade: grade ?? null,
-    normalizedScore: subs, // always present with 4 keys (null if missing)
-    strengths,
-    concerns,
-    ingredients,
-    ingredients_raw,
-    serving_size,
+    overallGrade: grade,
+    normalizedScore: { purity, effectiveness, safety, value },
+    strengths: rawScore?.highlights || [],
+    concerns: rawScore?.concerns || [],
+    ingredients: extract?.ingredients ?? null,
+    ingredients_raw: extract?.ingredients_raw || '',
+    serving_size: extract?.serving_size || undefined,
     meta: {},
   };
+
+  console.log('[score][normalized]', { overall: out.overallScore, grade: out.overallGrade, subs: out.normalizedScore });
+  return out;
 }
 
 /**
@@ -355,19 +363,16 @@ export async function chainExtractToScore(url: string, opts?: { force?: boolean 
   }
   
   // Check cache first (unless forced)
-  if (__DEV__) {
-    console.log('[cache] Checking cache for', url);
-  }
   if (!force) {
     const cachedResult = await getCachedResult(url);
     if (cachedResult) {
       if (__DEV__) {
-        console.log('[chain] ✅ Returning cached result for:', url);
+        console.log('[cache] hit', url);
       }
       return cachedResult as any;
     }
-  } else if (__DEV__) {
-    console.log('[cache] ⛔ Force bypass requested, skipping cache read for:', url);
+  } else {
+    console.log('[cache] bypass read', url);
   }
   
   // Check rate limit before making network requests
@@ -577,35 +582,28 @@ export async function chainExtractToScore(url: string, opts?: { force?: boolean 
     if (scoreOk) {
       addChainStep('score-supplement', 'ok', scoreMs);
       
-      const raw = scoreRes.data;
+      const rawScore = scoreRes.data;
       let s: any = {};
       
-      if (typeof raw === 'string') {
+      if (typeof rawScore === 'string') {
         try { 
-          s = JSON.parse(raw); 
+          s = JSON.parse(rawScore); 
         } catch { 
           s = {}; 
         }
       } else {
-        s = raw;
+        s = rawScore;
       }
 
-      // AUDIT: log raw score shape for dev debugging
-      if (__DEV__) {
-        try {
-          // eslint-disable-next-line no-console
-          console.debug('[score][raw]', {
-            keys: Object.keys(s || {}),
-            grade: s?.grade ?? s?.overallGrade ?? s?.letterGrade,
-            overall: s?.overall_score ?? s?.overallScore ?? s?.score,
-            subs: s?.normalizedScore ?? s?.subscores ?? s?.scores,
-          });
-        } catch {}
-      }
+      // Comprehensive logging of raw score response
+      console.log('[score][raw-keys]', Object.keys(s || {}));
+      try { 
+        console.log('[score][raw-full]', JSON.stringify(s).slice(0, 1200)); 
+      } catch {}
 
       // Normalize score data with explicit type guards - allow 0 for truly unanalyzable products
-      const rawScore = typeof s.score === 'number' ? s.score : (typeof s.score === 'string' ? parseFloat(s.score) : NaN);
-      const scoreNum = Number.isFinite(rawScore) ? Math.max(0, Math.min(100, Math.round(rawScore))) : 0;
+      const rawScoreNum = typeof s.score === 'number' ? s.score : (typeof s.score === 'string' ? parseFloat(s.score) : NaN);
+      const scoreNum = Number.isFinite(rawScoreNum) ? Math.max(0, Math.min(100, Math.round(rawScoreNum))) : 0;
       const highlights = Array.isArray(s.highlights) 
         ? s.highlights.filter((item: any) => typeof item === 'string' && item.trim()).slice(0, 5) 
         : [];
@@ -666,14 +664,7 @@ export async function chainExtractToScore(url: string, opts?: { force?: boolean 
       result.serving_size = ui.serving_size ?? undefined;
       result.ingredients_raw = ui.ingredients_raw ?? undefined;
 
-      if (__DEV__) {
-        // eslint-disable-next-line no-console
-        console.debug('[score][normalized]', {
-          overall: result.overallScore,
-          grade: result.overallGrade,
-          subs: result.normalizedScore,
-        });
-      }
+      // Logging happens in normalizeScoreResponse
 
       // AUDIT: prefer returning the normalized UI shape
       finalOut = { ...ui };
@@ -709,8 +700,13 @@ export async function chainExtractToScore(url: string, opts?: { force?: boolean 
 
   // Cache successful results unless forced
   if (result.product.title !== 'Unknown Product' || result.product.ingredients.length > 0) {
-    // Always update cache with fresh result, even on force
-    await setCachedResult(url, result);
+    if (!force) {
+      await setCachedResult(url, finalOut || result);
+    } else {
+      console.log('[cache] skip write (force)', url);
+      // Still write to cache even on force for next time
+      await setCachedResult(url, finalOut || result);
+    }
   }
 
   // Add legacy compatibility fields

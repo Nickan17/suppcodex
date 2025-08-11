@@ -244,6 +244,30 @@ function stripReviewsBlob(s: string): string {
 }
 
 /**
+ * Strip reviews/ratings blocks from Firecrawl content before parsing
+ */
+function stripReviewsFromMarkdown(md: string): string {
+  if (!md) return md;
+  const cutMarkers = [
+    /^#+\s*customer reviews.*$/im,
+    /^#+\s*reviews.*$/im,
+    /^#+\s*ratings?.*$/im,
+    /write a review/i,
+    /most recent/i,
+    /highest rating/i,
+    /lowest rating/i,
+    /pictures|videos/i,
+    /yotpo|judgme|judge\.me|stamped/i
+  ];
+  let out = md;
+  for (const rx of cutMarkers) {
+    const ix = out.search(rx);
+    if (ix > -1) { out = out.slice(0, ix); break; }
+  }
+  return out.trim().slice(0, 120_000);
+}
+
+/**
  * Check if parsed result looks thin and needs fallback
  */
 function looksThin(parsedResult: any, hasNumericDoses: boolean = false, factsTokens: number = 0): boolean {
@@ -779,9 +803,9 @@ async function handler(request: Request): Promise<Response> {
     // 4. Parse the result (skip if we already have Shopify result)
     if (!parsedRich) {
       let html = typeof data?.html === 'string' ? data.html : '';
-      let md = typeof data?.markdown === 'string' ? data.markdown : '';
+      let md = typeof data?.markdown === 'string' ? stripReviewsFromMarkdown(data.markdown) : '';
       // parseProductPage prefers HTML; if only markdown exists, wrap it
-      let htmlForParser = html || (md ? `<article>${md}</article>` : '');
+      const htmlForParser = html || (md ? `<article>${md}</article>` : '');
 
       // get OCR key if present
       const OCRSPACE_API_KEY = Deno.env.get("OCRSPACE_API_KEY") || undefined;
@@ -851,9 +875,18 @@ async function handler(request: Request): Promise<Response> {
       warnings.push("⚠ Numeric doses missing");
     }
 
+    const ingredients_raw = parsedRich?.ingredients_raw || '';
+    const ingredientsArray = Array.isArray(parsedRich?.ingredients)
+      ? parsedRich.ingredients
+      : (ingredients_raw
+          ? ingredients_raw.replace(/^ingredients?:/i, '').split(/[,;\n]/).map(s => s.trim()).filter(Boolean)
+          : []);
+
     const out: SuccessResponse = {
       title: parsedRich.title || 'Unknown Product',
-      ingredients: ingredientsDedupe,
+      ingredients: Array.from(new Set(ingredientsArray)).slice(0, 200),
+      // @ts-ignore - extend shape safely
+      ingredients_raw,
       supplementFacts: factsRaw ? { raw: stripReviewsBlob(factsRaw) } : undefined,
       warnings: warnings,
       // raw: firecrawlResult, // Raw output removed to prevent invalid JSON errors
